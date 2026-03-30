@@ -10,16 +10,16 @@ import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import BottomNav from './components/BottomNav.vue'
 import { useAuthStore } from './stores/auth.js'
-import { applyTheme } from './stores/settings.js'
+import { useSettingsStore } from './stores/settings.js'
 
 const route = useRoute()
 const authStore = useAuthStore()
+const settingsStore = useSettingsStore()
 
 const showNav = computed(() => authStore.user && route.path !== '/login')
 
 onMounted(() => {
-  const saved = localStorage.getItem('theme_preference') || 'light'
-  applyTheme(saved)
+  settingsStore.initTheme()
 })
 </script>
 

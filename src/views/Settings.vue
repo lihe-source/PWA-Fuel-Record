@@ -84,7 +84,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import Modal from '../components/Modal.vue'
 import { useAuthStore } from '../stores/auth.js'
@@ -139,17 +139,15 @@ async function handleLogout() {
   router.push('/login')
 }
 
-onMounted(async () => {
+async function fetchBackups() {
   if (authStore.user) {
     backups.value = await db.backups.where('userId').equals(authStore.user.uid).reverse().sortBy('createdAt')
   }
-})
+}
 
-// Watch backups modal open
-import { watch } from 'vue'
-watch(showBackupsModal, async (v) => {
-  if (v && authStore.user) {
-    backups.value = await db.backups.where('userId').equals(authStore.user.uid).reverse().sortBy('createdAt')
-  }
+onMounted(fetchBackups)
+
+watch(showBackupsModal, (v) => {
+  if (v) fetchBackups()
 })
 </script>

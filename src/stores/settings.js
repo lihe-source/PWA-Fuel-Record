@@ -29,5 +29,3 @@ export const useSettingsStore = defineStore('settings', () => {
 
   return { theme, initTheme, setTheme }
 })
-
-export { applyTheme }
