@@ -2,6 +2,14 @@
 
 const APP_VERSION = '1.1.0';
 
+// ── Constants ──────────────────────────────────────
+const LONG_PRESS_DURATION_MS = 650;
+const SWIPE_EDGE_THRESHOLD = 30;
+const SWIPE_CLOSE_THRESHOLD = 80;
+const SWIPE_HORIZONTAL_RATIO = 2;
+const SWIPE_MOVE_RATIO = 1.5;
+const SWIPE_COOLDOWN_MS = 500;
+
 // ── 預設假資料 ──────────────────────────────────────
 const defaultVehicles = [
   { id: 1, name: 'Toyota RAV4', type: 'car', note: '2021年 2.0L', createdAt: new Date().toISOString() },
@@ -455,7 +463,7 @@ function renderVehiclesPage() {
     // Long press to delete
     let pressTimer;
     const startPress = () => {
-      pressTimer = setTimeout(() => confirmDeleteVehicle(v), 700);
+      pressTimer = setTimeout(() => confirmDeleteVehicle(v), LONG_PRESS_DURATION_MS);
     };
     const endPress = () => clearTimeout(pressTimer);
     card.addEventListener('touchstart', startPress, { passive: true });
@@ -726,7 +734,7 @@ function buildRecordCard(r, v) {
   wrap.appendChild(right);
 
   let pressTimer;
-  const startPress = () => { pressTimer = setTimeout(() => confirmDeleteRecord(r.id), 600); };
+  const startPress = () => { pressTimer = setTimeout(() => confirmDeleteRecord(r.id), LONG_PRESS_DURATION_MS); };
   const endPress = () => clearTimeout(pressTimer);
   wrap.addEventListener('touchstart', startPress, { passive: true });
   wrap.addEventListener('touchend', endPress);
@@ -992,7 +1000,7 @@ function attachSwipeClose(modalId) {
   modal.addEventListener('touchstart', (e) => {
     if (swipeCooldown) return;
     const touch = e.touches[0];
-    if (touch.clientX > 30) return; // Only start from left 30px edge
+    if (touch.clientX > SWIPE_EDGE_THRESHOLD) return; // Only start from left edge
     startX = touch.clientX;
     startY = touch.clientY;
     startTime = Date.now();
@@ -1006,7 +1014,7 @@ function attachSwipeClose(modalId) {
     const dx = touch.clientX - startX;
     const dy = touch.clientY - startY;
     if (dx <= 0) { tracking = false; modal.style.transition = ''; return; }
-    if (Math.abs(dx) > Math.abs(dy) * 1.5) {
+    if (Math.abs(dx) > Math.abs(dy) * SWIPE_MOVE_RATIO) {
       modal.style.transform = `translateX(${dx}px)`;
     }
   }, { passive: true });
@@ -1018,14 +1026,14 @@ function attachSwipeClose(modalId) {
     const touch = e.changedTouches[0];
     const dx = touch.clientX - startX;
     const dy = touch.clientY - startY;
-    if (dx > 80 && Math.abs(dx) > Math.abs(dy) * 2) {
+    if (dx > SWIPE_CLOSE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * SWIPE_HORIZONTAL_RATIO) {
       // Trigger close
       swipeCooldown = true;
       modal.style.transform = 'translateX(105%)';
       setTimeout(() => {
         closeModal(modalId);
         modal.style.transform = '';
-        setTimeout(() => { swipeCooldown = false; }, 300);
+        setTimeout(() => { swipeCooldown = false; }, SWIPE_COOLDOWN_MS);
       }, 280);
     } else {
       // Snap back
