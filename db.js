@@ -60,7 +60,7 @@ function updateVehicle(id, data) {
       const getReq = store.get(id);
       getReq.onsuccess = () => {
         const existing = getReq.result;
-        if (!existing) { reject(new Error('Vehicle not found')); return; }
+        if (!existing) { reject(new Error(`Vehicle with id ${id} not found`)); return; }
         const updated = Object.assign({}, existing, data, { id });
         const putReq = store.put(updated);
         putReq.onsuccess = () => resolve(putReq.result);

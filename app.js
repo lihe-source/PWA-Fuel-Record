@@ -1,8 +1,14 @@
 // app.js - 油耗紀錄 PWA 主程式
 
 const APP_VERSION = '1.1.0';
-const DRIVE_FOLDER_NAME = 'PWA-Fuel-Record-Backups';
-const DRIVE_MAX_BACKUPS = 5;
+const DRIVE_FOLDER_NAME = 'PWA-Fuel-Record-Backups'; // Google Drive backup folder name
+const DRIVE_MAX_BACKUPS = 5; // Maximum number of Drive backups to keep
+
+// ── Swipe gesture thresholds ──────────────────────
+const SWIPE_EDGE_THRESHOLD = 40;    // px from left edge to start gesture
+const SWIPE_MIN_START = 8;          // minimum dx to begin drag
+const SWIPE_COMPLETE_THRESHOLD = 80; // dx required to trigger close
+const SWIPE_DIRECTIONAL_RATIO = 1.5; // |dx| must exceed |dy| * ratio
 
 // ── 預設假資料 ──────────────────────────────────────
 const defaultVehicles = [
@@ -966,7 +972,7 @@ function attachSwipeBack(modalId) {
     const t = e.touches[0];
     const dx = t.clientX - startX;
     const dy = t.clientY - startY;
-    if (!dragging && startX < 40 && dx > 8 && Math.abs(dx) > Math.abs(dy)) {
+    if (!dragging && startX < SWIPE_EDGE_THRESHOLD && dx > SWIPE_MIN_START && Math.abs(dx) > Math.abs(dy)) {
       dragging = true;
     }
     if (dragging) {
@@ -983,7 +989,7 @@ function attachSwipeBack(modalId) {
     panel.style.transform = '';
     dragging = false;
     if (swipeCooldown) return;
-    if (dx > 80 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+    if (dx > SWIPE_COMPLETE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * SWIPE_DIRECTIONAL_RATIO) {
       swipeCooldown = true;
       closeModal(modalId);
       setTimeout(() => { swipeCooldown = false; }, 300);
