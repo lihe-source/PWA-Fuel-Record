@@ -331,7 +331,7 @@ onMounted(loadBackups)
 }
 
 .mb-2 {
-  margin-bottom: 0;
+  margin-bottom: 0.5rem;
 }
 
 .mb-4 {
