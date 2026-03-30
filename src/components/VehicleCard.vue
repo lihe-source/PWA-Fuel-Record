@@ -1,5 +1,5 @@
 <template>
-  <div class="rounded-xl p-4 mb-3" style="background: var(--bg-secondary); border: var(--card-border);">
+  <div class="rounded-xl p-4 mb-3" style="background: var(--bg-primary); border: var(--card-border);">
     <div class="flex items-start justify-between">
       <div class="flex items-center gap-3">
         <span class="text-2xl">{{ vehicle.type === '汽車' ? '🚗' : '🏍️' }}</span>
