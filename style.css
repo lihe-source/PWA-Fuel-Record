@@ -169,8 +169,8 @@ body.light-mode #bottom-nav {
 }
 
 .nav-btn {
-  flex: 0 0 25%;
-  width: 25%;
+  flex: 0 0 20%;
+  width: 20%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -948,3 +948,278 @@ textarea.form-input {
 
 /* ── Update Sheet ── */
 #update-sheet .sheet-title { color: var(--amber); }
+
+/* ── History Page Layout ── */
+#header-history {
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  z-index: 5;
+}
+
+#history-filter-bar {
+  flex-shrink: 0;
+  padding: 8px 14px 4px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#history-list-container {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  padding: 10px 14px;
+}
+
+/* ── Vehicles Page ── */
+#header-vehicles {
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  z-index: 5;
+}
+
+.btn-add-vehicle {
+  background: var(--amber-dim);
+  color: var(--amber);
+  border: 1px solid rgba(255,177,31,.3);
+  border-radius: var(--radius-sm);
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity .15s;
+  min-height: 36px;
+}
+
+.btn-add-vehicle:active { opacity: .75; }
+
+/* ── Accordion / Expandable Vehicle Card ── */
+.vc-expand-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--text3);
+  padding: 4px;
+  min-width: 28px;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: color .15s;
+  border-radius: var(--radius-xs);
+}
+
+.vc-expand-toggle:active { color: var(--amber); }
+
+.vc-expanded-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height .3s cubic-bezier(.4,0,.2,1);
+}
+
+.vc-expanded-body.open {
+  /* max-height set dynamically via JS */
+}
+
+.vc-expanded-inner {
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+}
+
+.vc-expand-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  margin-bottom: 6px;
+  margin-top: 10px;
+}
+
+.vc-expand-section-title:first-child { margin-top: 0; }
+
+.vc-mini-record {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.vc-mini-record:last-child { border-bottom: none; }
+
+.vc-mini-left {
+  color: var(--text2);
+  font-variant-numeric: tabular-nums;
+}
+
+.vc-mini-right {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--amber);
+}
+
+.vc-mini-right.green { color: var(--green); }
+
+.vc-expand-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.btn-vc-action {
+  flex: 1;
+  padding: 8px 6px;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-xs);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text2);
+  cursor: pointer;
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .15s, color .15s;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-vc-action:active { background: var(--amber-dim); color: var(--amber); }
+
+/* ── Settings Page ── */
+.settings-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  margin-bottom: 10px;
+  margin-top: 6px;
+}
+
+/* ── Theme Toggle ── */
+.toggle-btn {
+  width: 48px;
+  height: 28px;
+  border-radius: 14px;
+  border: none;
+  background: var(--bg4);
+  cursor: pointer;
+  position: relative;
+  transition: background .2s;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.toggle-btn::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--text3);
+  transition: transform .2s, background .2s;
+}
+
+.toggle-btn.active {
+  background: var(--amber-dim);
+}
+
+.toggle-btn.active::after {
+  transform: translateX(20px);
+  background: var(--amber);
+}
+
+/* ── Vehicle Management Cards ── */
+.vehicle-manage-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity .15s;
+  user-select: none;
+}
+
+.vehicle-manage-card:active { opacity: .8; }
+
+.vmc-emoji {
+  font-size: 32px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.vmc-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.vmc-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.vmc-note {
+  font-size: 11px;
+  color: var(--text2);
+  margin-top: 2px;
+}
+
+.vmc-count {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 2px;
+}
+
+.vmc-arrow {
+  font-size: 16px;
+  color: var(--text3);
+  flex-shrink: 0;
+}
+
+/* ── Danger button (spec) ── */
+.btn-danger {
+  background: var(--red-dim);
+  color: var(--red);
+  border: 1px solid rgba(244,63,94,.3);
+  border-radius: var(--radius-sm);
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  width: 100%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity .15s;
+}
+
+.btn-danger:active { opacity: .8; }
