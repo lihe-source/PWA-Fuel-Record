@@ -28,7 +28,7 @@
       <span class="header-title">我的車輛</span>
       <div class="header-actions">
         <button id="theme-toggle-btn" aria-label="切換主題">🌙</button>
-        <span id="version-label">v1.0.0</span>
+        <span id="version-label">v1.1.0</span>
       </div>
     </div>
     <div id="main-content" class="page-content">
@@ -41,56 +41,89 @@
     <div id="header-history" style="height:44px;flex-shrink:0;display:flex;align-items:center;padding:0 16px;background:var(--bg);border-bottom:1px solid var(--border);z-index:5;">
       <span style="font-size:16px;font-weight:700">歷史記錄</span>
     </div>
-    <div class="page-content">
-      <div id="history-vehicle-filter" class="filter-bar"></div>
-      <div id="history-type-filter" class="filter-bar"></div>
+    <div id="history-vehicle-filter" class="filter-bar" style="flex-shrink:0;padding:8px 14px 0;margin-bottom:0"></div>
+    <div id="history-type-filter" class="filter-bar" style="flex-shrink:0;padding:4px 14px 0;margin-bottom:0"></div>
+    <div id="history-sort-bar" style="flex-shrink:0;display:flex;gap:6px;padding:6px 14px 0">
+      <button id="sort-desc-btn" class="sort-btn active" data-sort="desc">🔽 由新到舊</button>
+      <button id="sort-asc-btn" class="sort-btn" data-sort="asc">🔼 由舊到新</button>
+    </div>
+    <div id="history-list-container" style="flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;padding:8px 14px 14px">
       <div id="history-list"></div>
     </div>
   </div>
 
-  <!-- ── Backup Page ── -->
-  <div id="page-backup" class="page">
+  <!-- ── Vehicles Page ── -->
+  <div id="page-vehicles" class="page" style="position:relative">
     <div style="height:44px;flex-shrink:0;display:flex;align-items:center;padding:0 16px;background:var(--bg);border-bottom:1px solid var(--border);z-index:5;">
-      <span style="font-size:16px;font-weight:700">☁️ 資料備份與還原</span>
+      <span style="font-size:16px;font-weight:700">車輛管理</span>
+    </div>
+    <div class="page-content" style="padding-bottom:80px">
+      <div id="vehicles-list"></div>
+    </div>
+    <!-- FAB button -->
+    <button id="add-vehicle-fab" class="fab-btn" aria-label="新增車輛">＋ 新增車輛</button>
+  </div>
+
+  <!-- ── Settings Page ── -->
+  <div id="page-settings" class="page">
+    <div style="height:44px;flex-shrink:0;display:flex;align-items:center;padding:0 16px;background:var(--bg);border-bottom:1px solid var(--border);z-index:5;">
+      <span style="font-size:16px;font-weight:700">⚙️ 設定</span>
     </div>
     <div class="page-content">
 
-      <!-- Local backup section -->
-      <div class="backup-section">
-        <div class="backup-section-title">📱 本機備份</div>
+      <!-- Section 1: 外觀設定 -->
+      <div class="settings-section">
+        <div class="settings-section-title">外觀設定</div>
+        <div class="settings-card">
+          <span class="settings-card-icon">🎨</span>
+          <div class="settings-card-body">
+            <div class="settings-card-title">主題模式</div>
+            <div class="settings-card-sub">Dark / Light</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="theme-toggle-settings">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Section 2: 資料備份與還原 -->
+      <div class="settings-section">
+        <div class="settings-section-title">資料備份與還原</div>
         <div class="backup-btn-row">
-          <button id="export-btn" class="btn-secondary">📤 匯出 JSON 備份</button>
-          <button id="import-btn" class="btn-secondary">📥 匯入 JSON 還原</button>
+          <button id="export-btn" class="btn-secondary">⬇ 匯出 JSON 備份</button>
+          <button id="import-btn" class="btn-secondary">⬆ 匯入 JSON 還原</button>
           <input type="file" id="import-file-input" accept=".json" style="display:none">
         </div>
+        <div style="margin-top:10px">
+          <div id="gdrive-auth-row" class="backup-btn-row">
+            <button id="gdrive-login-btn" class="btn-secondary">🔑 登入 Google</button>
+            <div id="gdrive-user-info" style="display:none;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border2)">
+              <span id="gdrive-user-name" style="font-size:13px;font-weight:600;color:var(--text)"></span>
+              <button id="gdrive-logout-btn" class="btn-danger" style="width:auto;padding:6px 12px;font-size:12px">登出</button>
+            </div>
+          </div>
+          <div id="gdrive-upload-row" style="display:none;margin-top:8px">
+            <button id="gdrive-upload-btn" class="btn-secondary">☁ 上傳備份至 Google Drive</button>
+            <div style="font-size:11px;color:var(--text3);margin-top:6px;line-height:1.5">⚠️ 備份存入您個人的 Google Drive，如需共用請在 Drive 中手動設定共用。建議定期匯出 JSON 備份至共用資料夾。</div>
+          </div>
+        </div>
       </div>
 
       <div class="divider"></div>
 
-      <!-- Google Drive section -->
-      <div class="backup-section">
-        <div class="backup-section-title">☁️ Google Drive 備份</div>
-
-        <div class="form-group">
-          <label class="form-label">Google Client ID</label>
-          <input type="text" id="gdrive-client-id-input" class="form-input" placeholder="貼上您的 Google OAuth Client ID"
-            value="">
-        </div>
-
-        <div class="backup-btn-row">
-          <button id="gdrive-login-btn" class="btn-secondary">🔑 登入 Google</button>
-          <button id="gdrive-upload-btn" class="btn-secondary" style="display:none">☁️ 上傳備份至 Google Drive</button>
-        </div>
-
-        <div id="gdrive-file-section" style="display:none;margin-top:12px">
-          <div class="section-header">備份檔案</div>
+      <!-- Section 3: Google Drive 備份清單 -->
+      <div id="gdrive-file-section" style="display:none">
+        <div class="settings-section">
+          <div class="settings-section-title">Google Drive 備份清單</div>
           <div id="gdrive-file-list" class="backup-file-list"></div>
         </div>
+        <div class="divider"></div>
       </div>
 
-      <div class="divider"></div>
-
-      <!-- API setup guide (collapsible) -->
+      <!-- Section 4: Google API 設定說明 -->
       <div>
         <div id="gdrive-api-toggle" class="collapsible-header">
           <span class="ch-title">ℹ️ 如何設定 Google API？</span>
@@ -102,8 +135,22 @@
           <p><strong>3.</strong> 啟用 <em>Google Drive API</em></p>
           <p><strong>4.</strong> 到「憑證」頁面，建立 OAuth 2.0 用戶端 ID（類型選 Web 應用程式）</p>
           <p><strong>5.</strong> 在「已授權的 JavaScript 來源」加入您的網站網址（例如：https://lihe-source.github.io）</p>
-          <p><strong>6.</strong> 複製 Client ID，貼至上方欄位後登入</p>
+          <p><strong>6.</strong> 複製 Client ID，貼至下方欄位後登入</p>
+          <div class="form-group" style="margin-top:12px">
+            <label class="form-label">Google Client ID</label>
+            <input type="text" id="gdrive-client-id-input" class="form-input" placeholder="貼上您的 Google OAuth Client ID">
+          </div>
+          <button id="gdrive-save-client-id-btn" class="btn-secondary" style="margin-top:4px">💾 儲存 Client ID</button>
+          <p style="margin-top:10px;font-size:11px;color:var(--text3)">若需存入特定共用資料夾，可在取得 OAuth Token 後，修改 app.js 中的 DRIVE_FOLDER_NAME 常數，並設定 parents 參數為目標資料夾 ID。</p>
         </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Section 5: 危險區域 -->
+      <div class="settings-section danger-zone">
+        <div class="settings-section-title danger-title">⚠ 危險區域</div>
+        <button id="clear-data-btn" class="btn-danger" style="width:100%">🗑 清除所有資料</button>
       </div>
 
     </div>
@@ -123,9 +170,13 @@
       <span class="nav-icon">📋</span>
       歷史
     </button>
-    <button class="nav-btn" id="nav-backup">
-      <span class="nav-icon">☁️</span>
-      備份
+    <button class="nav-btn" id="nav-vehicles">
+      <span class="nav-icon">🚗</span>
+      車輛
+    </button>
+    <button class="nav-btn" id="nav-settings">
+      <span class="nav-icon">⚙️</span>
+      設定
     </button>
   </nav>
 
@@ -221,6 +272,34 @@
       <button class="detail-tab" data-tab="maintenance">🔧 保養記錄</button>
     </div>
     <div id="detail-records"></div>
+  </div>
+</div>
+
+<!-- ── Add/Edit Vehicle Modal ── -->
+<div id="vehicle-modal" class="modal-panel">
+  <div class="modal-header">
+    <button id="vehicle-modal-back" class="modal-back-btn" aria-label="返回">←</button>
+    <span id="vehicle-modal-title" class="modal-title">新增車輛</span>
+  </div>
+  <div class="modal-content">
+    <input type="hidden" id="vehicle-edit-id">
+    <div class="form-group">
+      <label class="form-label">車輛名稱 *</label>
+      <input type="text" id="vehicle-name-input" class="form-input" placeholder="例：Toyota RAV4">
+    </div>
+    <div class="form-group">
+      <label class="form-label">車型</label>
+      <select id="vehicle-type-input" class="form-input">
+        <option value="car">🚗 汽車</option>
+        <option value="motorcycle">🛵 機車</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">備註（選填）</label>
+      <input type="text" id="vehicle-note-input" class="form-input" placeholder="例：2021年 2.0L">
+    </div>
+    <button id="vehicle-save-btn" class="btn-primary" style="margin-top:8px">✅ 儲存車輛</button>
+    <div style="height:20px"></div>
   </div>
 </div>
 

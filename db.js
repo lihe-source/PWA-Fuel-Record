@@ -52,13 +52,21 @@ function addVehicle(vehicle) {
   });
 }
 
-function updateVehicle(vehicle) {
+function updateVehicle(id, data) {
   return openDB().then(db => {
     return new Promise((resolve, reject) => {
       const tx = db.transaction('vehicles', 'readwrite');
-      const req = tx.objectStore('vehicles').put(vehicle);
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = e => reject(e.target.error);
+      const store = tx.objectStore('vehicles');
+      const getReq = store.get(id);
+      getReq.onsuccess = () => {
+        const existing = getReq.result;
+        if (!existing) { reject(new Error('Vehicle not found')); return; }
+        const updated = Object.assign({}, existing, data, { id });
+        const putReq = store.put(updated);
+        putReq.onsuccess = () => resolve(putReq.result);
+        putReq.onerror = e => reject(e.target.error);
+      };
+      getReq.onerror = e => reject(e.target.error);
     });
   });
 }
@@ -66,10 +74,17 @@ function updateVehicle(vehicle) {
 function deleteVehicle(id) {
   return openDB().then(db => {
     return new Promise((resolve, reject) => {
-      const tx = db.transaction('vehicles', 'readwrite');
-      const req = tx.objectStore('vehicles').delete(id);
-      req.onsuccess = () => resolve();
-      req.onerror = e => reject(e.target.error);
+      const tx = db.transaction(['vehicles', 'records'], 'readwrite');
+      // Delete all records for this vehicle first
+      const recIndex = tx.objectStore('records').index('vehicleId');
+      const recReq = recIndex.getAllKeys(id);
+      recReq.onsuccess = () => {
+        const keys = recReq.result;
+        keys.forEach(k => tx.objectStore('records').delete(k));
+        tx.objectStore('vehicles').delete(id);
+      };
+      tx.oncomplete = () => resolve();
+      tx.onerror = e => reject(e.target.error);
     });
   });
 }
