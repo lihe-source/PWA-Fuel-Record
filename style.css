@@ -1159,6 +1159,7 @@ textarea.form-input {
   display: flex;
   align-items: center;
   gap: 12px;
+  cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: opacity .15s;
   user-select: none;
@@ -1256,12 +1257,12 @@ textarea.form-input {
 
 /* ── Light Mode Card Border Enhancement ── */
 body.light-mode .card {
-  border: 1px solid #b0b8c8 !important;
+  border-color: #b0b8c8;
   box-shadow: 0 1px 4px rgba(0,0,0,0.08), 0 0 0 1px #c0c8d8;
 }
 
 body.light-mode .glass {
-  border-color: #b0b8c8 !important;
+  border-color: #b0b8c8;
 }
 
 /* ── Maintenance Template Rows ── */

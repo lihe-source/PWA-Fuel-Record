@@ -9,6 +9,7 @@ const SWIPE_CLOSE_THRESHOLD = 80;
 const SWIPE_HORIZONTAL_RATIO = 2;
 const SWIPE_MOVE_RATIO = 1.5;
 const SWIPE_COOLDOWN_MS = 500;
+const TOAST_STAGGER_DELAY_MS = 300;
 
 // ── 預設假資料 ──────────────────────────────────────
 const defaultVehicles = [
@@ -697,7 +698,7 @@ async function submitAddRecord() {
       }
       if (overdueItems.length > 0) {
         overdueItems.forEach(item => {
-          setTimeout(() => showToast(`⚠️ 里程提醒：「${item.name}」應於 ${item.nextKm.toLocaleString()} km 更換，目前 ${odometer.toLocaleString()} km 已超過！`, 'error'), 200);
+          setTimeout(() => showToast(`⚠️ 里程提醒：「${item.name}」應於 ${item.nextKm.toLocaleString()} km 更換，目前 ${odometer.toLocaleString()} km 已超過！`, 'error'), TOAST_STAGGER_DELAY_MS);
         });
       }
     }
@@ -705,6 +706,7 @@ async function submitAddRecord() {
     const date = $('add-maint-date').value;
     const odometer = parseFloat($('add-maint-odometer').value);
     const maintenanceCost = parseFloat($('add-maint-cost').value);
+    // let: may be overwritten by auto-calculated value from templates below
     let nextOdometerReminder = parseFloat($('add-next-reminder').value) || 0;
     const note = $('add-maint-note').value.trim();
 
@@ -734,7 +736,7 @@ async function submitAddRecord() {
     showToast('✅ 記錄已儲存', 'success');
     if (autoReminders.length > 0) {
       autoReminders.forEach(r => {
-        setTimeout(() => showToast(`🔧 下次「${r.name}」預計於 ${r.nextKm.toLocaleString()} km`, 'info'), 400);
+        setTimeout(() => showToast(`🔧 下次「${r.name}」預計於 ${r.nextKm.toLocaleString()} km`, 'info'), TOAST_STAGGER_DELAY_MS);
       });
     }
     closeModal('add-modal', () => { renderDashboard(); });
@@ -946,7 +948,7 @@ async function handleImportFile(e) {
 
 // ── Clear All Data ─────────────────────────────────
 async function handleClearAllData() {
-  if (!confirm('⚠️ 確認清除？\n所有車輛、記錄與保養提醒將永久刪除，但設定不受影響。')) return;
+  if (!confirm('⚠️ 確認清除？\n所有車輛與記錄將永久刪除，但設定與保養項目模板不受影響。')) return;
   await clearAllData();
   vehicles = await getAllVehicles();
   records = await getAllRecords();
