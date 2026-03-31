@@ -1202,6 +1202,100 @@ textarea.form-input {
   flex-shrink: 0;
 }
 
+.vmc-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.vmc-edit-btn, .vmc-delete-btn {
+  background: none;
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-xs);
+  font-size: 16px;
+  cursor: pointer;
+  min-width: 36px;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .15s;
+}
+
+.vmc-edit-btn:active { background: var(--amber-dim); }
+.vmc-delete-btn:active { background: var(--red-dim); }
+
+/* ── FAB Add Button ── */
+#nav-add {
+  position: relative;
+  top: -14px;
+  margin-top: -14px;
+}
+
+#nav-add .nav-icon {
+  width: 56px;
+  height: 56px;
+  background: var(--amber);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(255,177,31,.5);
+  transition: transform .15s, box-shadow .15s;
+}
+
+#nav-add:active .nav-icon {
+  transform: scale(.92);
+  box-shadow: 0 2px 8px rgba(255,177,31,.3);
+}
+
+#nav-add { color: var(--text3); }
+#nav-add.active { color: var(--text3); }
+
+/* ── Light Mode Card Border Enhancement ── */
+body.light-mode .card {
+  border-color: #b0b8c8;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08), 0 0 0 1px #c0c8d8;
+}
+
+body.light-mode .glass {
+  border-color: #b0b8c8;
+}
+
+/* ── Maintenance Template Rows ── */
+.maint-tmpl-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+}
+
+.maint-tmpl-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.maint-tmpl-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.maint-tmpl-detail {
+  font-size: 11px;
+  color: var(--text2);
+  margin-top: 2px;
+}
+
+.maint-tmpl-btns {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
 /* ── Danger button (spec) ── */
 .btn-danger {
   background: var(--red-dim);

@@ -1,7 +1,7 @@
 // db.js - IndexedDB 操作封裝
 
 const DB_NAME = 'FuelRecordDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let _db = null;
 
@@ -20,6 +20,10 @@ function openDB() {
         rs.createIndex('vehicleId', 'vehicleId');
         rs.createIndex('date', 'date');
         rs.createIndex('type', 'type');
+      }
+      if (!db.objectStoreNames.contains('maintenanceTemplates')) {
+        const mts = db.createObjectStore('maintenanceTemplates', { keyPath: 'id', autoIncrement: true });
+        mts.createIndex('vehicleType', 'vehicleType');
       }
     };
     req.onsuccess = e => {
@@ -125,6 +129,61 @@ function clearAllData() {
       const tx = db.transaction(['vehicles', 'records'], 'readwrite');
       tx.objectStore('vehicles').clear();
       tx.objectStore('records').clear();
+      tx.oncomplete = () => resolve();
+      tx.onerror = e => reject(e.target.error);
+    });
+  });
+}
+
+function getAllMaintenanceTemplates() {
+  return openDB().then(db => {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('maintenanceTemplates', 'readonly');
+      const req = tx.objectStore('maintenanceTemplates').getAll();
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = e => reject(e.target.error);
+    });
+  });
+}
+
+function addMaintenanceTemplate(tmpl) {
+  return openDB().then(db => {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('maintenanceTemplates', 'readwrite');
+      const req = tx.objectStore('maintenanceTemplates').add(tmpl);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = e => reject(e.target.error);
+    });
+  });
+}
+
+function updateMaintenanceTemplate(tmpl) {
+  return openDB().then(db => {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('maintenanceTemplates', 'readwrite');
+      const req = tx.objectStore('maintenanceTemplates').put(tmpl);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = e => reject(e.target.error);
+    });
+  });
+}
+
+function deleteMaintenanceTemplate(id) {
+  return openDB().then(db => {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('maintenanceTemplates', 'readwrite');
+      const req = tx.objectStore('maintenanceTemplates').delete(id);
+      req.onsuccess = () => resolve();
+      req.onerror = e => reject(e.target.error);
+    });
+  });
+}
+
+function clearMaintenanceTemplates() {
+  return openDB().then(db => {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('maintenanceTemplates', 'readwrite');
+      tx.objectStore('maintenanceTemplates').clear();
       tx.oncomplete = () => resolve();
       tx.onerror = e => reject(e.target.error);
     });

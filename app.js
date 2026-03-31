@@ -1,6 +1,6 @@
-// app.js - 油耗紀錄 PWA 主程式 v1.1.0
+// app.js - 油耗紀錄 PWA 主程式 v1.2.0
 
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.0';
 
 // ── Constants ──────────────────────────────────────
 const LONG_PRESS_DURATION_MS = 650;
@@ -9,6 +9,7 @@ const SWIPE_CLOSE_THRESHOLD = 80;
 const SWIPE_HORIZONTAL_RATIO = 2;
 const SWIPE_MOVE_RATIO = 1.5;
 const SWIPE_COOLDOWN_MS = 500;
+const TOAST_STAGGER_DELAY_MS = 300;
 
 // ── 預設假資料 ──────────────────────────────────────
 const defaultVehicles = [
@@ -32,6 +33,7 @@ const GDRIVE_BACKUP_KEEP = 5;
 // ── State ─────────────────────────────────────────
 let vehicles = [];
 let records = [];
+let maintenanceTemplates = [];
 let currentPage = 'dashboard';
 let swRegistration = null;
 let gisTokenClient = null;
@@ -43,6 +45,7 @@ let historySort = 'desc';
 let selectedMaintItems = [];
 let expandedVehicleId = null;
 let swipeCooldown = false;
+let activeMaintTemplateType = 'car';
 
 // ── DOM Helpers ───────────────────────────────────
 const $ = id => document.getElementById(id);
@@ -111,7 +114,7 @@ function closeSheet(overlayId, panelId, cb) {
 
 // ── Theme ─────────────────────────────────────────
 function applyTheme() {
-  const isLight = localStorage.getItem('theme') === 'light';
+  const isLight = localStorage.getItem('theme') !== 'dark';
   document.body.classList.toggle('light-mode', isLight);
   const themeBtn = $('theme-toggle-btn');
   if (themeBtn) themeBtn.textContent = isLight ? '☀️' : '🌙';
@@ -155,16 +158,36 @@ function showUpdateSheet(newVer) {
   openSheet('update-overlay', 'update-sheet');
 }
 
+// ── Default Maintenance Templates ──────────────────
+const defaultCarTemplates = [
+  { vehicleType: 'car', itemName: '機油', intervalKm: 5000, note: '' },
+  { vehicleType: 'car', itemName: '機油芯', intervalKm: 10000, note: '' },
+  { vehicleType: 'car', itemName: '空氣濾芯', intervalKm: 20000, note: '' },
+  { vehicleType: 'car', itemName: '冷卻液', intervalKm: 40000, note: '' },
+  { vehicleType: 'car', itemName: '火星塞', intervalKm: 30000, note: '' },
+  { vehicleType: 'car', itemName: '煞車油', intervalKm: 40000, note: '' },
+  { vehicleType: 'car', itemName: '變速箱油', intervalKm: 60000, note: '' },
+];
+const defaultMotorcycleTemplates = [
+  { vehicleType: 'motorcycle', itemName: '機油', intervalKm: 2000, note: '' },
+  { vehicleType: 'motorcycle', itemName: '空氣濾芯', intervalKm: 6000, note: '' },
+  { vehicleType: 'motorcycle', itemName: '火星塞', intervalKm: 8000, note: '' },
+  { vehicleType: 'motorcycle', itemName: '煞車皮', intervalKm: 10000, note: '' },
+  { vehicleType: 'motorcycle', itemName: '傳動皮帶', intervalKm: 20000, note: '' },
+  { vehicleType: 'motorcycle', itemName: '齒輪油', intervalKm: 6000, note: '' },
+];
+
 // ── Data Load ─────────────────────────────────────
 async function loadData() {
   vehicles = await getAllVehicles();
   records = await getAllRecords();
+  maintenanceTemplates = await getAllMaintenanceTemplates();
 
-  if (vehicles.length === 0) {
-    for (const v of defaultVehicles) await addVehicle(v);
-    for (const r of defaultRecords) await addRecord(r);
-    vehicles = await getAllVehicles();
-    records = await getAllRecords();
+  if (maintenanceTemplates.length === 0) {
+    for (const t of [...defaultCarTemplates, ...defaultMotorcycleTemplates]) {
+      await addMaintenanceTemplate(t);
+    }
+    maintenanceTemplates = await getAllMaintenanceTemplates();
   }
 }
 
@@ -197,6 +220,21 @@ function renderDashboard() {
     const emoji = v.type === 'motorcycle' ? '🛵' : '🚗';
     const isOpen = expandedVehicleId === v.id;
 
+    // Check maintenance overdue for any template
+    const vType = v.type;
+    const vTemplates = maintenanceTemplates.filter(t => t.vehicleType === vType);
+    let maintOverdue = false;
+    if (vTemplates.length > 0 && latestOdometer !== '—') {
+      const currentKm = Number(latestOdometer);
+      for (const tmpl of vTemplates) {
+        const lastMaintWithItem = maintRecords.find(r => (r.items || []).includes(tmpl.itemName));
+        if (lastMaintWithItem) {
+          const nextKm = lastMaintWithItem.odometer + tmpl.intervalKm;
+          if (currentKm >= nextKm) { maintOverdue = true; break; }
+        }
+      }
+    }
+
     let fuelStat = `<div class="vc-stat no-data">⛽ 尚無油耗記錄</div>`;
     if (latestEfficiency) {
       fuelStat = `<div class="vc-stat fuel">⛽ ${latestEfficiency.toFixed(1)} km/L</div>`;
@@ -224,7 +262,7 @@ function renderDashboard() {
         <div class="vc-left">
           <span class="vc-emoji">${emoji}</span>
           <div>
-            <div class="vc-name">${escHtml(v.name)}</div>
+            <div class="vc-name">${escHtml(v.name)}${maintOverdue ? ' <span style="color:var(--red);font-size:14px" title="有保養項目已超過更換里程">⚠️</span>' : ''}</div>
             <div class="vc-note">${escHtml(v.note || '')}</div>
           </div>
         </div>
@@ -456,21 +494,25 @@ function renderVehiclesPage() {
         <div class="vmc-note">${escHtml(v.note || '—')}</div>
         <div class="vmc-count">共 ${vRecords.length} 筆記錄</div>
       </div>
-      <span class="vmc-arrow">›</span>`;
+      <div class="vmc-actions">
+        <button class="vmc-edit-btn" data-vid="${v.id}" aria-label="編輯">✏️</button>
+        <button class="vmc-delete-btn" data-vid="${v.id}" aria-label="刪除">🗑️</button>
+      </div>`;
 
-    card.addEventListener('click', () => openVehicleDetail(v.id));
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.vmc-edit-btn') || e.target.closest('.vmc-delete-btn')) return;
+      openVehicleDetail(v.id);
+    });
 
-    // Long press to delete
-    let pressTimer;
-    const startPress = () => {
-      pressTimer = setTimeout(() => confirmDeleteVehicle(v), LONG_PRESS_DURATION_MS);
-    };
-    const endPress = () => clearTimeout(pressTimer);
-    card.addEventListener('touchstart', startPress, { passive: true });
-    card.addEventListener('touchend', endPress);
-    card.addEventListener('touchcancel', endPress);
-    card.addEventListener('mousedown', startPress);
-    card.addEventListener('mouseup', endPress);
+    card.querySelector('.vmc-edit-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      openEditVehicleModal(v);
+    });
+
+    card.querySelector('.vmc-delete-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      confirmDeleteVehicle(v);
+    });
 
     list.appendChild(card);
   });
@@ -505,6 +547,28 @@ async function saveNewVehicle() {
   vehicles = await getAllVehicles();
   showToast('✅ 車輛已新增', 'success');
   closeModal('add-vehicle-modal', () => renderVehiclesPage());
+}
+
+function openEditVehicleModal(v) {
+  $('edit-vehicle-id').value = v.id;
+  $('edit-vehicle-name').value = v.name;
+  $('edit-vehicle-type').value = v.type;
+  $('edit-vehicle-note').value = v.note || '';
+  openModal('edit-vehicle-modal');
+}
+
+async function saveEditVehicle() {
+  const id = parseInt($('edit-vehicle-id').value);
+  const name = $('edit-vehicle-name').value.trim();
+  const type = $('edit-vehicle-type').value;
+  const note = $('edit-vehicle-note').value.trim();
+  if (!name) { showToast('請填寫車輛名稱', 'error'); return; }
+  const existing = vehicles.find(v => v.id === id);
+  if (!existing) return;
+  await updateVehicle({ ...existing, name, type, note });
+  vehicles = await getAllVehicles();
+  showToast('✅ 車輛資料已更新', 'success');
+  closeModal('edit-vehicle-modal', () => renderVehiclesPage());
 }
 
 // ── Add Record Modal ───────────────────────────────
@@ -546,8 +610,13 @@ function setAddType(type) {
 }
 
 function renderMaintChips() {
-  const items = ['換機油', '換濾芯', '換輪胎', '換煞車皮', '冷卻液', '其他'];
-  $('maint-chips').innerHTML = items.map(item =>
+  const vehicleId = parseInt($('add-vehicle-select').value);
+  const vehicle = vehicles.find(v => v.id === vehicleId);
+  const vType = vehicle ? vehicle.type : 'car';
+  const tmplItems = maintenanceTemplates.filter(t => t.vehicleType === vType).map(t => t.itemName);
+  const staticItems = ['換機油', '換濾芯', '換輪胎', '換煞車皮', '冷卻液', '其他'];
+  const allItems = [...new Set([...tmplItems, ...staticItems])];
+  $('maint-chips').innerHTML = allItems.map(item =>
     `<button class="chip${selectedMaintItems.includes(item) ? ' selected' : ''}" data-item="${escHtml(item)}">${escHtml(item)}</button>`
   ).join('');
   $('maint-chips').querySelectorAll('.chip').forEach(btn => {
@@ -607,17 +676,71 @@ async function submitAddRecord() {
     const fuelEfficiency = prevRecord ? parseFloat(((odometer - prevRecord.odometer) / liters).toFixed(2)) : 0;
 
     await addRecord({ vehicleId, type: 'fuel', date, odometer, liters, fuelCost, fuelEfficiency, note, createdAt: new Date().toISOString() });
+
+    // Check maintenance templates for overdue items
+    records = await getAllRecords();
+    const vehicle = vehicles.find(v => v.id === vehicleId);
+    if (vehicle) {
+      const vType = vehicle.type;
+      const vTemplates = maintenanceTemplates.filter(t => t.vehicleType === vType);
+      const maintRecords = records.filter(r => r.vehicleId === vehicleId && r.type === 'maintenance');
+      const overdueItems = [];
+      for (const tmpl of vTemplates) {
+        const lastMaintWithItem = maintRecords
+          .sort((a, b) => b.odometer - a.odometer)
+          .find(r => (r.items || []).includes(tmpl.itemName));
+        if (lastMaintWithItem) {
+          const nextKm = lastMaintWithItem.odometer + tmpl.intervalKm;
+          if (odometer >= nextKm) {
+            overdueItems.push({ name: tmpl.itemName, nextKm });
+          }
+        }
+      }
+      if (overdueItems.length > 0) {
+        overdueItems.forEach(item => {
+          setTimeout(() => showToast(`⚠️ 里程提醒：「${item.name}」應於 ${item.nextKm.toLocaleString()} km 更換，目前 ${odometer.toLocaleString()} km 已超過！`, 'error'), TOAST_STAGGER_DELAY_MS);
+        });
+      }
+    }
   } else {
     const date = $('add-maint-date').value;
     const odometer = parseFloat($('add-maint-odometer').value);
     const maintenanceCost = parseFloat($('add-maint-cost').value);
-    const nextOdometerReminder = parseFloat($('add-next-reminder').value) || 0;
+    // let: may be overwritten by auto-calculated value from templates below
+    let nextOdometerReminder = parseFloat($('add-next-reminder').value) || 0;
     const note = $('add-maint-note').value.trim();
 
     if (!date || !odometer || !maintenanceCost) { showToast('請填寫必要欄位', 'error'); return; }
     if (selectedMaintItems.length === 0) { showToast('請選擇保養項目', 'error'); return; }
 
+    // Auto-calculate next reminder from templates if not manually set
+    const vehicle = vehicles.find(v => v.id === vehicleId);
+    const autoReminders = [];
+    if (vehicle && !nextOdometerReminder) {
+      const vType = vehicle.type;
+      for (const itemName of selectedMaintItems) {
+        const tmpl = maintenanceTemplates.find(t => t.vehicleType === vType && t.itemName === itemName);
+        if (tmpl) {
+          const nextKm = odometer + tmpl.intervalKm;
+          autoReminders.push({ name: itemName, nextKm });
+          if (!nextOdometerReminder || nextKm < nextOdometerReminder) {
+            nextOdometerReminder = nextKm;
+          }
+        }
+      }
+    }
+
     await addRecord({ vehicleId, type: 'maintenance', date, odometer, items: [...selectedMaintItems], maintenanceCost, nextOdometerReminder, note, createdAt: new Date().toISOString() });
+
+    records = await getAllRecords();
+    showToast('✅ 記錄已儲存', 'success');
+    if (autoReminders.length > 0) {
+      autoReminders.forEach(r => {
+        setTimeout(() => showToast(`🔧 下次「${r.name}」預計於 ${r.nextKm.toLocaleString()} km`, 'info'), TOAST_STAGGER_DELAY_MS);
+      });
+    }
+    closeModal('add-modal', () => { renderDashboard(); });
+    return;
   }
 
   records = await getAllRecords();
@@ -767,14 +890,18 @@ function renderSettings() {
   if (driveAccessToken) {
     $('gdrive-login-btn').style.display = 'none';
     $('gdrive-logout-btn').style.display = 'flex';
-    $('gdrive-logout-btn').textContent = `登出 ${driveUserName}`;
+    $('gdrive-logout-btn').textContent = '登出';
     $('gdrive-upload-btn').style.display = 'flex';
-    $('gdrive-file-section').style.display = 'block';
+    $('gdrive-show-backups-btn').style.display = 'flex';
+    const userInfo = $('gdrive-user-info');
+    if (userInfo) { userInfo.style.display = 'block'; userInfo.textContent = `✅ 已登入：${driveUserName}`; }
   } else {
     $('gdrive-login-btn').style.display = 'flex';
     $('gdrive-logout-btn').style.display = 'none';
     $('gdrive-upload-btn').style.display = 'none';
-    $('gdrive-file-section').style.display = 'none';
+    $('gdrive-show-backups-btn').style.display = 'none';
+    const userInfo = $('gdrive-user-info');
+    if (userInfo) { userInfo.style.display = 'none'; userInfo.textContent = ''; }
   }
 }
 
@@ -821,11 +948,8 @@ async function handleImportFile(e) {
 
 // ── Clear All Data ─────────────────────────────────
 async function handleClearAllData() {
-  if (!confirm('⚠️ 確認清除？\n所有車輛與記錄將永久刪除，且無法復原。')) return;
+  if (!confirm('⚠️ 確認清除？\n所有車輛與記錄將永久刪除，但設定與保養項目模板不受影響。')) return;
   await clearAllData();
-  // Reload default data
-  for (const v of defaultVehicles) await addVehicle(v);
-  for (const r of defaultRecords) await addRecord(r);
   vehicles = await getAllVehicles();
   records = await getAllRecords();
   showToast('🗑️ 資料已清除', 'error');
@@ -854,9 +978,11 @@ function initGIS() {
       } catch (e) { driveUserName = 'Google'; }
       $('gdrive-login-btn').style.display = 'none';
       $('gdrive-logout-btn').style.display = 'flex';
-      $('gdrive-logout-btn').textContent = `登出 ${driveUserName}`;
+      $('gdrive-logout-btn').textContent = '登出';
       $('gdrive-upload-btn').style.display = 'flex';
-      $('gdrive-file-section').style.display = 'block';
+      $('gdrive-show-backups-btn').style.display = 'flex';
+      const userInfo = $('gdrive-user-info');
+      if (userInfo) { userInfo.style.display = 'block'; userInfo.textContent = `✅ 已登入：${driveUserName}`; }
       showToast('✅ 已登入 Google', 'success');
       listDriveBackups();
     }
@@ -878,7 +1004,9 @@ function googleLogout() {
   $('gdrive-login-btn').style.display = 'flex';
   $('gdrive-logout-btn').style.display = 'none';
   $('gdrive-upload-btn').style.display = 'none';
-  $('gdrive-file-section').style.display = 'none';
+  $('gdrive-show-backups-btn').style.display = 'none';
+  const userInfo = $('gdrive-user-info');
+  if (userInfo) { userInfo.style.display = 'none'; userInfo.textContent = ''; }
   showToast('已登出 Google', 'info');
 }
 
@@ -989,6 +1117,86 @@ async function restoreFromDrive(fileId, fileName) {
   }
 }
 
+// ── Maintenance Templates UI ───────────────────────
+function openMaintTemplatesModal() {
+  activeMaintTemplateType = 'car';
+  renderMaintTemplatesList();
+  openModal('maint-templates-modal');
+}
+
+function renderMaintTemplatesList() {
+  const list = $('maint-templates-list');
+  if (!list) return;
+  const filtered = maintenanceTemplates.filter(t => t.vehicleType === activeMaintTemplateType);
+  if (filtered.length === 0) {
+    list.innerHTML = '<div style="font-size:13px;color:var(--text3);padding:8px 0">尚無保養項目</div>';
+    return;
+  }
+  list.innerHTML = '';
+  filtered.forEach(tmpl => {
+    const row = el('div', 'card maint-tmpl-row');
+    row.innerHTML = `
+      <div class="maint-tmpl-info">
+        <div class="maint-tmpl-name">${escHtml(tmpl.itemName)}</div>
+        <div class="maint-tmpl-detail">每 ${Number(tmpl.intervalKm).toLocaleString()} km${tmpl.note ? ' · ' + escHtml(tmpl.note) : ''}</div>
+      </div>
+      <div class="maint-tmpl-btns">
+        <button class="vmc-edit-btn" data-tid="${tmpl.id}" aria-label="編輯">✏️</button>
+        <button class="vmc-delete-btn" data-tid="${tmpl.id}" aria-label="刪除">🗑️</button>
+      </div>`;
+    row.querySelector('.vmc-edit-btn').addEventListener('click', () => openAddMaintTemplateModal(tmpl));
+    row.querySelector('.vmc-delete-btn').addEventListener('click', () => confirmDeleteMaintTemplate(tmpl));
+    list.appendChild(row);
+  });
+}
+
+function openAddMaintTemplateModal(tmpl) {
+  if (tmpl) {
+    $('add-maint-template-title').textContent = '編輯保養項目';
+    $('edit-tmpl-id').value = tmpl.id;
+    $('tmpl-vehicle-type').value = tmpl.vehicleType;
+    $('tmpl-item-name').value = tmpl.itemName;
+    $('tmpl-interval-km').value = tmpl.intervalKm;
+    $('tmpl-note').value = tmpl.note || '';
+  } else {
+    $('add-maint-template-title').textContent = '新增保養項目';
+    $('edit-tmpl-id').value = '';
+    $('tmpl-vehicle-type').value = activeMaintTemplateType;
+    $('tmpl-item-name').value = '';
+    $('tmpl-interval-km').value = '';
+    $('tmpl-note').value = '';
+  }
+  openModal('add-maint-template-modal');
+}
+
+async function saveMaintTemplate() {
+  const id = $('edit-tmpl-id').value;
+  const vehicleType = $('tmpl-vehicle-type').value;
+  const itemName = $('tmpl-item-name').value.trim();
+  const intervalKm = parseInt($('tmpl-interval-km').value);
+  const note = $('tmpl-note').value.trim();
+  if (!itemName) { showToast('請填寫項目名稱', 'error'); return; }
+  if (!intervalKm || intervalKm <= 0) { showToast('請填寫間隔公里數', 'error'); return; }
+  if (id) {
+    await updateMaintenanceTemplate({ id: parseInt(id), vehicleType, itemName, intervalKm, note });
+    showToast('✅ 保養項目已更新', 'success');
+  } else {
+    await addMaintenanceTemplate({ vehicleType, itemName, intervalKm, note });
+    showToast('✅ 保養項目已新增', 'success');
+  }
+  maintenanceTemplates = await getAllMaintenanceTemplates();
+  activeMaintTemplateType = vehicleType;
+  closeModal('add-maint-template-modal', () => renderMaintTemplatesList());
+}
+
+async function confirmDeleteMaintTemplate(tmpl) {
+  if (!confirm(`確定要刪除「${tmpl.itemName}」保養項目？`)) return;
+  await deleteMaintenanceTemplate(tmpl.id);
+  maintenanceTemplates = await getAllMaintenanceTemplates();
+  showToast('🗑️ 保養項目已刪除', 'info');
+  renderMaintTemplatesList();
+}
+
 // ── Swipe-to-Close for Modal Panels ───────────────
 function attachSwipeClose(modalId) {
   const modal = $(modalId);
@@ -1076,9 +1284,8 @@ function escHtml(str) {
 
 // ── Init ──────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
-  if (localStorage.getItem('theme') === 'light') {
-    document.body.classList.add('light-mode');
-  }
+  const isLight = localStorage.getItem('theme') !== 'dark';
+  if (isLight) document.body.classList.add('light-mode');
   applyTheme();
 
   await loadData();
@@ -1104,7 +1311,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.querySelectorAll('.type-tab').forEach(btn => {
     btn.addEventListener('click', () => setAddType(btn.dataset.type));
   });
-  $('add-vehicle-select').addEventListener('change', updateFuelEstimate);
+  $('add-vehicle-select').addEventListener('change', () => { updateFuelEstimate(); renderMaintChips(); });
   $('add-odometer').addEventListener('input', updateFuelEstimate);
   $('add-liters').addEventListener('input', updateFuelEstimate);
   $('add-submit-btn').addEventListener('click', submitAddRecord);
@@ -1123,6 +1330,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('add-vehicle-btn').addEventListener('click', openAddVehicleModal);
   $('add-vehicle-modal-back').addEventListener('click', () => closeModal('add-vehicle-modal'));
   $('save-vehicle-btn').addEventListener('click', saveNewVehicle);
+  $('edit-vehicle-modal-back').addEventListener('click', () => closeModal('edit-vehicle-modal'));
+  $('save-edit-vehicle-btn').addEventListener('click', saveEditVehicle);
 
   // Settings page
   $('export-btn').addEventListener('click', exportJSON);
@@ -1131,7 +1340,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('gdrive-login-btn').addEventListener('click', googleLogin);
   $('gdrive-logout-btn').addEventListener('click', googleLogout);
   $('gdrive-upload-btn').addEventListener('click', uploadToDrive);
+  $('gdrive-show-backups-btn').addEventListener('click', () => {
+    listDriveBackups();
+    openModal('backup-list-modal');
+  });
+  $('backup-list-modal-back').addEventListener('click', () => closeModal('backup-list-modal'));
   $('clear-data-btn').addEventListener('click', handleClearAllData);
+  $('open-maint-templates-btn').addEventListener('click', openMaintTemplatesModal);
+  $('maint-templates-modal-back').addEventListener('click', () => closeModal('maint-templates-modal'));
+  $('add-maint-template-btn').addEventListener('click', () => openAddMaintTemplateModal(null));
+  $('add-maint-template-modal-back').addEventListener('click', () => closeModal('add-maint-template-modal'));
+  $('save-maint-template-btn').addEventListener('click', saveMaintTemplate);
+  document.querySelectorAll('.maint-type-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeMaintTemplateType = btn.dataset.vtype;
+      document.querySelectorAll('.maint-type-tab').forEach(b => b.classList.toggle('active', b.dataset.vtype === activeMaintTemplateType));
+      renderMaintTemplatesList();
+    });
+  });
 
   // Collapsible API guide
   $('gdrive-api-toggle').addEventListener('click', () => {
@@ -1153,7 +1379,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('update-overlay').addEventListener('click', () => closeSheet('update-overlay', 'update-sheet'));
 
   // Attach swipe-to-close for all modal panels
-  ['add-modal', 'vehicle-detail-modal', 'add-vehicle-modal'].forEach(id => {
+  ['add-modal', 'vehicle-detail-modal', 'add-vehicle-modal', 'edit-vehicle-modal', 'backup-list-modal', 'maint-templates-modal', 'add-maint-template-modal'].forEach(id => {
     attachSwipeClose(id);
   });
 

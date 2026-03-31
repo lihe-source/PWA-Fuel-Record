@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="style.css">
   <!-- Prevent flash of wrong theme -->
   <script>
-    if (localStorage.getItem('theme') === 'light') {
+    if (localStorage.getItem('theme') !== 'dark') {
       document.documentElement.classList.add('light-pending');
     }
   </script>
@@ -28,7 +28,7 @@
       <span class="header-title">我的車輛</span>
       <div class="header-actions">
         <button id="theme-toggle-btn" aria-label="切換主題">🌙</button>
-        <span id="version-label">v1.1.0</span>
+        <span id="version-label">v1.2.0</span>
       </div>
     </div>
     <div id="main-content" class="page-content">
@@ -67,7 +67,7 @@
     <div style="height:44px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:var(--bg);border-bottom:1px solid var(--border);z-index:5;">
       <span style="font-size:16px;font-weight:700">⚙️ 設定</span>
       <div style="display:flex;align-items:center;gap:8px;">
-        <span style="font-size:10px;color:var(--text3);font-weight:600">v1.1.0</span>
+        <span style="font-size:10px;color:var(--text3);font-weight:600">v1.2.0</span>
         <button id="settings-theme-btn" style="background:none;border:none;cursor:pointer;font-size:18px;padding:4px;min-width:32px;min-height:32px;display:flex;align-items:center;justify-content:center;">🌙</button>
       </div>
     </div>
@@ -111,12 +111,9 @@
       <div class="backup-btn-row" style="margin-bottom:14px">
         <button id="gdrive-login-btn" class="btn-secondary">🔑 登入 Google 帳號</button>
         <button id="gdrive-logout-btn" class="btn-secondary" style="display:none">登出</button>
+        <div id="gdrive-user-info" style="display:none;font-size:13px;color:var(--green);font-weight:600;padding:6px 0;"></div>
         <button id="gdrive-upload-btn" class="btn-secondary" style="display:none">☁️ 立即備份至 Google Drive</button>
-      </div>
-
-      <div id="gdrive-file-section" style="display:none;margin-bottom:14px">
-        <div class="section-header">近期備份（最多 5 筆）</div>
-        <div id="gdrive-file-list" class="backup-file-list"></div>
+        <button id="gdrive-show-backups-btn" class="btn-secondary" style="display:none">📋 查看近期備份</button>
       </div>
 
       <div class="divider"></div>
@@ -140,9 +137,15 @@
 
       <div class="divider"></div>
 
+      <!-- Maintenance Settings section -->
+      <div class="settings-section-title">🔧 保養設定</div>
+      <button id="open-maint-templates-btn" class="btn-secondary" style="width:100%;margin-bottom:14px">🔧 保養項目設定</button>
+
+      <div class="divider"></div>
+
       <!-- Danger Zone -->
       <div class="settings-section-title" style="color:var(--red)">⚠️ 危險區域</div>
-      <p style="font-size:12px;color:var(--text2);margin-bottom:10px">清除後所有資料將永久刪除，且無法復原。</p>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:10px">清除後車輛與記錄將永久刪除，設定與保養項目模板不受影響。</p>
       <button id="clear-data-btn" class="btn-danger">🗑️ 清除所有資料</button>
       <div style="height:20px"></div>
 
@@ -291,6 +294,95 @@
       <input type="text" id="new-vehicle-note" class="form-input" placeholder="例：2021年 2.0L">
     </div>
     <button id="save-vehicle-btn" class="btn-primary" style="margin-top:8px">✅ 儲存車輛</button>
+    <div style="height:20px"></div>
+  </div>
+</div>
+
+<!-- ── Edit Vehicle Modal ── -->
+<div id="edit-vehicle-modal" class="modal-panel">
+  <div class="modal-header">
+    <button id="edit-vehicle-modal-back" class="modal-back-btn" aria-label="返回">←</button>
+    <span class="modal-title">編輯車輛</span>
+  </div>
+  <div class="modal-content">
+    <input type="hidden" id="edit-vehicle-id">
+    <div class="form-group">
+      <label class="form-label">車輛名稱 *</label>
+      <input type="text" id="edit-vehicle-name" class="form-input" placeholder="例：Toyota RAV4">
+    </div>
+    <div class="form-group">
+      <label class="form-label">車輛類型</label>
+      <select id="edit-vehicle-type" class="form-input">
+        <option value="car">🚗 汽車</option>
+        <option value="motorcycle">🛵 機車</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">備註 / 型號（選填）</label>
+      <input type="text" id="edit-vehicle-note" class="form-input" placeholder="例：2021年 2.0L">
+    </div>
+    <button id="save-edit-vehicle-btn" class="btn-primary" style="margin-top:8px">✅ 儲存修改</button>
+    <div style="height:20px"></div>
+  </div>
+</div>
+
+<!-- ── Backup List Modal ── -->
+<div id="backup-list-modal" class="modal-panel">
+  <div class="modal-header">
+    <button id="backup-list-modal-back" class="modal-back-btn" aria-label="返回">←</button>
+    <span class="modal-title">近期備份（最多 5 筆）</span>
+  </div>
+  <div class="modal-content">
+    <div id="gdrive-file-list" class="backup-file-list"></div>
+    <div style="height:20px"></div>
+  </div>
+</div>
+
+<!-- ── Maintenance Templates Modal ── -->
+<div id="maint-templates-modal" class="modal-panel">
+  <div class="modal-header">
+    <button id="maint-templates-modal-back" class="modal-back-btn" aria-label="返回">←</button>
+    <span class="modal-title">🔧 保養項目設定</span>
+  </div>
+  <div class="modal-content">
+    <div class="type-tabs" style="margin-bottom:16px">
+      <button class="maint-type-tab active" data-vtype="car">🚗 汽車</button>
+      <button class="maint-type-tab" data-vtype="motorcycle">🛵 機車</button>
+    </div>
+    <div id="maint-templates-list"></div>
+    <button id="add-maint-template-btn" class="btn-secondary" style="margin-top:10px">＋ 新增保養項目</button>
+    <div style="height:20px"></div>
+  </div>
+</div>
+
+<!-- ── Add/Edit Maintenance Template Modal ── -->
+<div id="add-maint-template-modal" class="modal-panel">
+  <div class="modal-header">
+    <button id="add-maint-template-modal-back" class="modal-back-btn" aria-label="返回">←</button>
+    <span id="add-maint-template-title" class="modal-title">新增保養項目</span>
+  </div>
+  <div class="modal-content">
+    <input type="hidden" id="edit-tmpl-id">
+    <div class="form-group">
+      <label class="form-label">適用車型</label>
+      <select id="tmpl-vehicle-type" class="form-input">
+        <option value="car">🚗 汽車</option>
+        <option value="motorcycle">🛵 機車</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">項目名稱 *</label>
+      <input type="text" id="tmpl-item-name" class="form-input" placeholder="例：機油">
+    </div>
+    <div class="form-group">
+      <label class="form-label">間隔公里數 km *</label>
+      <input type="number" id="tmpl-interval-km" class="form-input" placeholder="例：5000" inputmode="numeric">
+    </div>
+    <div class="form-group">
+      <label class="form-label">備註（選填）</label>
+      <input type="text" id="tmpl-note" class="form-input" placeholder="例：建議使用 5W-30">
+    </div>
+    <button id="save-maint-template-btn" class="btn-primary" style="margin-top:8px">✅ 儲存</button>
     <div style="height:20px"></div>
   </div>
 </div>
