@@ -4,8 +4,8 @@
   "description": "汽機車油耗與保養紀錄 PWA",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#101426",
-  "theme_color": "#101426",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
   "orientation": "portrait-primary",
   "icons": [
     {
