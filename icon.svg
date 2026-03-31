@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="110" fill="#101426"/>
+  <!-- 汽車主體 -->
+  <rect x="80" y="260" width="352" height="130" rx="20" fill="#ffb11f"/>
+  <!-- 車頂 -->
+  <path d="M140 260 L175 180 H337 L372 260 Z" fill="#ffca55"/>
+  <!-- 車窗 -->
+  <path d="M190 260 L212 200 H300 L322 260 Z" fill="#101426" opacity="0.6"/>
+  <!-- 車輪 -->
+  <circle cx="165" cy="390" r="45" fill="#262f54"/>
+  <circle cx="165" cy="390" r="25" fill="#ffb11f"/>
+  <circle cx="347" cy="390" r="45" fill="#262f54"/>
+  <circle cx="347" cy="390" r="25" fill="#ffb11f"/>
+  <!-- 油滴 -->
+  <path d="M420 120 Q435 95 450 120 Q450 145 420 145 Q390 145 420 120 Z" fill="#ffca55" transform="translate(-10,0)"/>
+  <text x="415" y="85" font-size="28" fill="#ffb11f" text-anchor="middle" font-family="sans-serif">⛽</text>
+</svg>
