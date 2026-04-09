@@ -1,6 +1,6 @@
-// app.js - 油耗紀錄 PWA 主程式 v1.3.0
+// app.js - 油耗紀錄 PWA 主程式 v1.5.0
 
-const APP_VERSION = '1.3.0';
+const APP_VERSION = '1.5.0';
 
 // ── Constants ──────────────────────────────────────
 const LONG_PRESS_DURATION_MS = 650;
@@ -901,6 +901,7 @@ function renderHistoryList() {
 
 function buildRecordCard(r, v) {
   const wrap = el('div', 'card record-card');
+
   const iconEl = el('div', `record-icon-wrap ${r.type}`);
   iconEl.textContent = r.type === 'fuel' ? '⛽' : '🔧';
 
@@ -926,22 +927,21 @@ function buildRecordCard(r, v) {
     right.innerHTML = `<div class="record-value">$${Number(r.maintenanceCost).toLocaleString()}</div>`;
   }
 
-  // Action buttons row
-  const actions = el('div', 'record-actions');
-  const editBtn = el('button', 'record-action-btn edit', '✏️ 編輯');
-  const delBtn = el('button', 'record-action-btn delete', '🗑️ 刪除');
+  // Inline icon buttons (stacked vertically, right side)
+  const btnGroup = el('div', 'record-btn-group');
+  const editBtn = el('button', 'rec-btn', '✏️');
+  const delBtn = el('button', 'rec-btn del', '🗑️');
+  editBtn.title = '編輯';
+  delBtn.title = '刪除';
   editBtn.addEventListener('click', (e) => { e.stopPropagation(); openEditRecordModal(r); });
   delBtn.addEventListener('click', (e) => { e.stopPropagation(); confirmDeleteRecord(r.id); });
-  actions.appendChild(editBtn);
-  actions.appendChild(delBtn);
+  btnGroup.appendChild(editBtn);
+  btnGroup.appendChild(delBtn);
 
-  const top = el('div', 'record-top');
-  top.appendChild(iconEl);
-  top.appendChild(body);
-  top.appendChild(right);
-
-  wrap.appendChild(top);
-  wrap.appendChild(actions);
+  wrap.appendChild(iconEl);
+  wrap.appendChild(body);
+  wrap.appendChild(right);
+  wrap.appendChild(btnGroup);
 
   return wrap;
 }

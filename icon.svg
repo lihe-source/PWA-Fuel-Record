@@ -1,17 +1,64 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <rect width="512" height="512" rx="110" fill="#101426"/>
-  <!-- 汽車主體 -->
-  <rect x="80" y="260" width="352" height="130" rx="20" fill="#ffb11f"/>
-  <!-- 車頂 -->
-  <path d="M140 260 L175 180 H337 L372 260 Z" fill="#ffca55"/>
-  <!-- 車窗 -->
-  <path d="M190 260 L212 200 H300 L322 260 Z" fill="#101426" opacity="0.6"/>
-  <!-- 車輪 -->
-  <circle cx="165" cy="390" r="45" fill="#262f54"/>
-  <circle cx="165" cy="390" r="25" fill="#ffb11f"/>
-  <circle cx="347" cy="390" r="45" fill="#262f54"/>
-  <circle cx="347" cy="390" r="25" fill="#ffb11f"/>
-  <!-- 油滴 -->
-  <path d="M420 120 Q435 95 450 120 Q450 145 420 145 Q390 145 420 120 Z" fill="#ffca55" transform="translate(-10,0)"/>
-  <text x="415" y="85" font-size="28" fill="#ffb11f" text-anchor="middle" font-family="sans-serif">⛽</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4ade80"/>
+      <stop offset="100%" stop-color="#15803d"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="rgba(0,0,0,0.25)"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+
+  <!-- ── SCOOTER (white, side-view) ── -->
+  <g fill="none" stroke="white" stroke-linecap="round" stroke-linejoin="round">
+
+    <!-- Rear wheel -->
+    <circle cx="148" cy="368" r="74" stroke-width="30"/>
+    <!-- Rear axle dot -->
+
+    <!-- Front wheel -->
+    <circle cx="372" cy="368" r="74" stroke-width="30"/>
+
+    <!-- Main frame: rear hub → up to seat → forward to front fork -->
+    <path d="M148 340 L172 252 Q184 206 222 196 L296 193 Q332 193 352 216 L372 268 L372 294"
+          stroke-width="28"/>
+
+    <!-- Front fork -->
+    <line x1="355" y1="220" x2="372" y2="294" stroke-width="24"/>
+
+    <!-- Handlebar stem + grip -->
+    <path d="M336 218 L362 182 L392 197" stroke-width="22"/>
+
+  </g>
+
+  <!-- Seat (filled) -->
+  <rect x="202" y="176" width="115" height="28" rx="14" fill="white"/>
+
+  <!-- Engine / body block (filled) -->
+  <path d="M210 270 Q215 248 230 242 L280 242 Q298 248 305 270 L308 326 L204 326 Z"
+        fill="white"/>
+
+  <!-- Headlight -->
+  <circle cx="376" cy="236" r="18" fill="white"/>
+
+  <!-- Rear wheel hub dot -->
+  <circle cx="148" cy="368" r="12" fill="white"/>
+  <!-- Front wheel hub dot -->
+  <circle cx="372" cy="368" r="12" fill="white"/>
+
+  <!-- Exhaust -->
+  <path d="M172 348 Q150 364 120 360" fill="none" stroke="white" stroke-width="14" stroke-linecap="round"/>
+
+  <!-- ── FUEL DROP (top-right) ── -->
+  <!-- Drop body -->
+  <path d="M415 68 C415 68 384 112 384 140 C384 158 398 172 415 172 C432 172 446 158 446 140 C446 112 415 68 415 68 Z"
+        fill="white"/>
+  <!-- Fuel nozzle line below drop -->
+  <line x1="415" y1="172" x2="415" y2="188" stroke="white" stroke-width="14" stroke-linecap="round"/>
+  <!-- Small nozzle head -->
+  <line x1="404" y1="188" x2="426" y2="188" stroke="white" stroke-width="14" stroke-linecap="round"/>
+
 </svg>

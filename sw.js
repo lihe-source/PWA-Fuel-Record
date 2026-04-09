@@ -1,6 +1,6 @@
 // sw.js - Service Worker
 
-const CACHE_VERSION = '1.3.0';
+const CACHE_VERSION = '1.5.0';
 const CACHE_NAME = `fuel-record-v${CACHE_VERSION}`;
 const STATIC_ASSETS = [
   './',
