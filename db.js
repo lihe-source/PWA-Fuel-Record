@@ -26,178 +26,140 @@ function openDB() {
         mts.createIndex('vehicleType', 'vehicleType');
       }
     };
-    req.onsuccess = e => {
-      _db = e.target.result;
-      resolve(_db);
-    };
+    req.onsuccess = e => { _db = e.target.result; resolve(_db); };
     req.onerror = e => reject(e.target.error);
   });
 }
 
 function getAllVehicles() {
-  return openDB().then(db => {
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction('vehicles', 'readonly');
-      const req = tx.objectStore('vehicles').getAll();
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = e => reject(e.target.error);
-    });
-  });
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const req = db.transaction('vehicles', 'readonly').objectStore('vehicles').getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = e => reject(e.target.error);
+  }));
 }
 
 function addVehicle(vehicle) {
-  return openDB().then(db => {
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction('vehicles', 'readwrite');
-      const req = tx.objectStore('vehicles').add(vehicle);
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = e => reject(e.target.error);
-    });
-  });
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const req = db.transaction('vehicles', 'readwrite').objectStore('vehicles').add(vehicle);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = e => reject(e.target.error);
+  }));
 }
 
 function updateVehicle(vehicle) {
-  return openDB().then(db => {
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction('vehicles', 'readwrite');
-      const req = tx.objectStore('vehicles').put(vehicle);
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = e => reject(e.target.error);
-    });
-  });
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const req = db.transaction('vehicles', 'readwrite').objectStore('vehicles').put(vehicle);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = e => reject(e.target.error);
+  }));
 }
 
 function deleteVehicle(id) {
-  return openDB().then(db => {
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction('vehicles', 'readwrite');
-      const req = tx.objectStore('vehicles').delete(id);
-      req.onsuccess = () => resolve();
-      req.onerror = e => reject(e.target.error);
-    });
-  });
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const req = db.transaction('vehicles', 'readwrite').objectStore('vehicles').delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror = e => reject(e.target.error);
+  }));
 }
 
 function getAllRecords() {
-  return openDB().then(db => {
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction('records', 'readonly');
-      const req = tx.objectStore('records').getAll();
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = e => reject(e.target.error);
-    });
-  });
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const req = db.transaction('records', 'readonly').objectStore('records').getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = e => reject(e.target.error);
+  }));
 }
 
 function getRecordsByVehicleId(vehicleId) {
-  return openDB().then(db => {
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction('records', 'readonly');
-      const index = tx.objectStore('records').index('vehicleId');
-      const req = index.getAll(vehicleId);
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = e => reject(e.target.error);
-    });
-  });
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const req = db.transaction('records', 'readonly').objectStore('records').index('vehicleId').getAll(vehicleId);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = e => reject(e.target.error);
+  }));
 }
 
 function addRecord(record) {
-  return openDB().then(db => {
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction('records', 'readwrite');
-      const req = tx.objectStore('records').add(record);
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = e => reject(e.target.error);
-    });
-  });
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const req = db.transaction('records', 'readwrite').objectStore('records').add(record);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = e => reject(e.target.error);
+  }));
+}
+
+function updateRecord(record) {
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const req = db.transaction('records', 'readwrite').objectStore('records').put(record);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = e => reject(e.target.error);
+  }));
 }
 
 function deleteRecord(id) {
-  return openDB().then(db => {
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction('records', 'readwrite');
-      const req = tx.objectStore('records').delete(id);
-      req.onsuccess = () => resolve();
-      req.onerror = e => reject(e.target.error);
-    });
-  });
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const req = db.transaction('records', 'readwrite').objectStore('records').delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror = e => reject(e.target.error);
+  }));
 }
 
 function clearAllData() {
-  return openDB().then(db => {
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(['vehicles', 'records'], 'readwrite');
-      tx.objectStore('vehicles').clear();
-      tx.objectStore('records').clear();
-      tx.oncomplete = () => resolve();
-      tx.onerror = e => reject(e.target.error);
-    });
-  });
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(['vehicles', 'records'], 'readwrite');
+    tx.objectStore('vehicles').clear();
+    tx.objectStore('records').clear();
+    tx.oncomplete = () => resolve();
+    tx.onerror = e => reject(e.target.error);
+  }));
 }
 
 function getAllMaintenanceTemplates() {
-  return openDB().then(db => {
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction('maintenanceTemplates', 'readonly');
-      const req = tx.objectStore('maintenanceTemplates').getAll();
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = e => reject(e.target.error);
-    });
-  });
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const req = db.transaction('maintenanceTemplates', 'readonly').objectStore('maintenanceTemplates').getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = e => reject(e.target.error);
+  }));
 }
 
 function addMaintenanceTemplate(tmpl) {
-  return openDB().then(db => {
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction('maintenanceTemplates', 'readwrite');
-      const req = tx.objectStore('maintenanceTemplates').add(tmpl);
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = e => reject(e.target.error);
-    });
-  });
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const req = db.transaction('maintenanceTemplates', 'readwrite').objectStore('maintenanceTemplates').add(tmpl);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = e => reject(e.target.error);
+  }));
 }
 
 function updateMaintenanceTemplate(tmpl) {
-  return openDB().then(db => {
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction('maintenanceTemplates', 'readwrite');
-      const req = tx.objectStore('maintenanceTemplates').put(tmpl);
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = e => reject(e.target.error);
-    });
-  });
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const req = db.transaction('maintenanceTemplates', 'readwrite').objectStore('maintenanceTemplates').put(tmpl);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = e => reject(e.target.error);
+  }));
 }
 
 function deleteMaintenanceTemplate(id) {
-  return openDB().then(db => {
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction('maintenanceTemplates', 'readwrite');
-      const req = tx.objectStore('maintenanceTemplates').delete(id);
-      req.onsuccess = () => resolve();
-      req.onerror = e => reject(e.target.error);
-    });
-  });
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const req = db.transaction('maintenanceTemplates', 'readwrite').objectStore('maintenanceTemplates').delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror = e => reject(e.target.error);
+  }));
 }
 
 function clearMaintenanceTemplates() {
-  return openDB().then(db => {
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction('maintenanceTemplates', 'readwrite');
-      tx.objectStore('maintenanceTemplates').clear();
-      tx.oncomplete = () => resolve();
-      tx.onerror = e => reject(e.target.error);
-    });
-  });
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction('maintenanceTemplates', 'readwrite');
+    tx.objectStore('maintenanceTemplates').clear();
+    tx.oncomplete = () => resolve();
+    tx.onerror = e => reject(e.target.error);
+  }));
 }
 
 function importData({ vehicles, records }) {
-  return clearAllData().then(() => openDB()).then(db => {
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(['vehicles', 'records'], 'readwrite');
-      vehicles.forEach(v => tx.objectStore('vehicles').add(v));
-      records.forEach(r => tx.objectStore('records').add(r));
-      tx.oncomplete = () => resolve();
-      tx.onerror = e => reject(e.target.error);
-    });
-  });
+  return clearAllData().then(() => openDB()).then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(['vehicles', 'records'], 'readwrite');
+    vehicles.forEach(v => tx.objectStore('vehicles').add(v));
+    records.forEach(r => tx.objectStore('records').add(r));
+    tx.oncomplete = () => resolve();
+    tx.onerror = e => reject(e.target.error);
+  }));
 }

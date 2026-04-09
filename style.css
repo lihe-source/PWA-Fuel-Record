@@ -1317,3 +1317,67 @@ body.light-mode .glass {
 }
 
 .btn-danger:active { opacity: .8; }
+
+/* ── V1.3 Record Card Layout ── */
+.record-card {
+  display: flex;
+  flex-direction: column;
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.record-card:active { opacity: 1; }
+
+.record-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.record-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.record-action-btn {
+  flex: 1;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 0;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text2);
+  font-weight: 600;
+  transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.record-action-btn.delete {
+  color: var(--red);
+  border-color: rgba(239,68,68,.3);
+}
+
+.record-action-btn:active { opacity: .7; }
+
+/* ── Fuel Price Badge ── */
+.fuel-price-badge {
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--green);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  flex-shrink: 0;
+}
+
+.fuel-price-status {
+  font-size: 10px;
+  color: var(--text3);
+  margin-top: 4px;
+}

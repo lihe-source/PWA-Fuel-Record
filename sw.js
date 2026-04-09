@@ -1,6 +1,6 @@
 // sw.js - Service Worker
 
-const CACHE_VERSION = '1.2.0';
+const CACHE_VERSION = '1.3.0';
 const CACHE_NAME = `fuel-record-v${CACHE_VERSION}`;
 const STATIC_ASSETS = [
   './',
@@ -30,15 +30,11 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // Network First for version.json to always get the latest version
   if (url.pathname.endsWith('version.json')) {
-    e.respondWith(
-      fetch(e.request).catch(() => caches.match(e.request))
-    );
+    e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
     return;
   }
 
-  // Cache First for all other static assets
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;
@@ -54,7 +50,5 @@ self.addEventListener('fetch', e => {
 });
 
 self.addEventListener('message', e => {
-  if (e.data && e.data.action === 'skipWaiting') {
-    self.skipWaiting();
-  }
+  if (e.data && e.data.action === 'skipWaiting') self.skipWaiting();
 });

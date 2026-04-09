@@ -1,6 +1,6 @@
-// app.js - 油耗紀錄 PWA 主程式 v1.2.0
+// app.js - 油耗紀錄 PWA 主程式 v1.3.0
 
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.3.0';
 
 // ── Constants ──────────────────────────────────────
 const LONG_PRESS_DURATION_MS = 650;
@@ -18,17 +18,138 @@ const defaultVehicles = [
 ];
 
 const defaultRecords = [
-  { vehicleId: 1, type: 'fuel', date: '2025-03-01', odometer: 44800, liters: 45.2, fuelCost: 1950, fuelEfficiency: 12.1, note: '', createdAt: new Date().toISOString() },
-  { vehicleId: 1, type: 'fuel', date: '2025-03-20', odometer: 45230, liters: 35.0, fuelCost: 1520, fuelEfficiency: 12.3, note: '', createdAt: new Date().toISOString() },
+  { vehicleId: 1, type: 'fuel', date: '2025-03-01', odometer: 44800, liters: 45.2, fuelCost: 1950, fuelEfficiency: 12.1, fuelGrade: '95', note: '', createdAt: new Date().toISOString() },
+  { vehicleId: 1, type: 'fuel', date: '2025-03-20', odometer: 45230, liters: 35.0, fuelCost: 1520, fuelEfficiency: 12.3, fuelGrade: '95', note: '', createdAt: new Date().toISOString() },
   { vehicleId: 1, type: 'maintenance', date: '2025-02-10', odometer: 44000, items: ['換機油', '換濾芯'], maintenanceCost: 1800, nextOdometerReminder: 49000, note: '5000km 後換油', createdAt: new Date().toISOString() },
-  { vehicleId: 2, type: 'fuel', date: '2025-03-15', odometer: 18600, liters: 3.5, fuelCost: 150, fuelEfficiency: 37.1, note: '', createdAt: new Date().toISOString() },
-  { vehicleId: 2, type: 'fuel', date: '2025-03-25', odometer: 18760, liters: 4.2, fuelCost: 180, fuelEfficiency: 38.5, note: '', createdAt: new Date().toISOString() },
+  { vehicleId: 2, type: 'fuel', date: '2025-03-15', odometer: 18600, liters: 3.5, fuelCost: 150, fuelEfficiency: 37.1, fuelGrade: '95', note: '', createdAt: new Date().toISOString() },
+  { vehicleId: 2, type: 'fuel', date: '2025-03-25', odometer: 18760, liters: 4.2, fuelCost: 180, fuelEfficiency: 38.5, fuelGrade: '95', note: '', createdAt: new Date().toISOString() },
   { vehicleId: 2, type: 'maintenance', date: '2025-01-20', odometer: 17500, items: ['換機油'], maintenanceCost: 350, nextOdometerReminder: 20000, note: '', createdAt: new Date().toISOString() }
 ];
 
-// ── Google Drive Folder ID ──────────────────────────
+// ── Google Drive ────────────────────────────────────
 const GDRIVE_FOLDER_ID = '1LqlXKg8BBthb5Iyijf6eQliXNETaDXP1';
 const GDRIVE_BACKUP_KEEP = 5;
+
+// ── CPC 油價 ────────────────────────────────────────
+const CPC_FALLBACK_PRICES = { '92': 28.5, '95': 30.1, '98': 32.1 };
+let cpcPrices = null;
+let cpcPricesSource = ''; // 'live' | 'cached' | 'fallback'
+
+async function fetchCPCPrices() {
+  // Check localStorage cache (4 hours)
+  try {
+    const cached = localStorage.getItem('cpc_prices');
+    const ts = Number(localStorage.getItem('cpc_prices_ts') || 0);
+    if (cached && Date.now() - ts < 4 * 3600000) {
+      cpcPrices = JSON.parse(cached);
+      cpcPricesSource = 'cached';
+      updateFuelPriceBadge();
+      return;
+    }
+  } catch(e) {}
+
+  updateFuelPriceBadgeLoading();
+
+  try {
+    const target = 'https://www.cpc.com.tw/GetOilPriceByType.aspx?type=2';
+    const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(target);
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 8000);
+    const res = await fetch(proxyUrl, { signal: ctrl.signal });
+    clearTimeout(tid);
+    const text = await res.text();
+
+    // Try JSON parse
+    let parsed = null;
+    try { parsed = JSON.parse(text); } catch(e) {}
+
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      const prices = {};
+      parsed.forEach(item => {
+        const name = String(item.NAME || item.OilTypeName || item.name || item.oilname || '');
+        const price = parseFloat(item.PRICE || item.Price || item.price || 0);
+        if (price > 0) {
+          if (name.includes('92')) prices['92'] = price;
+          else if (name.includes('98')) prices['98'] = price;
+          else if (name.includes('95')) prices['95'] = price;
+        }
+      });
+      if (prices['95'] > 0) {
+        if (!prices['92']) prices['92'] = parseFloat((prices['95'] - 1.6).toFixed(1));
+        if (!prices['98']) prices['98'] = parseFloat((prices['95'] + 2.0).toFixed(1));
+        cpcPrices = prices;
+        cpcPricesSource = 'live';
+        localStorage.setItem('cpc_prices', JSON.stringify(prices));
+        localStorage.setItem('cpc_prices_ts', Date.now().toString());
+        updateFuelPriceBadge();
+        return;
+      }
+    }
+
+    // Try HTML parsing as fallback
+    const m92 = text.match(/92[^0-9]*?(\d{2,3}\.\d)/);
+    const m95 = text.match(/95[^0-9]*?(\d{2,3}\.\d)/);
+    const m98 = text.match(/98[^0-9]*?(\d{2,3}\.\d)/);
+    if (m95) {
+      const prices = {
+        '92': m92 ? parseFloat(m92[1]) : parseFloat((parseFloat(m95[1]) - 1.6).toFixed(1)),
+        '95': parseFloat(m95[1]),
+        '98': m98 ? parseFloat(m98[1]) : parseFloat((parseFloat(m95[1]) + 2.0).toFixed(1))
+      };
+      cpcPrices = prices;
+      cpcPricesSource = 'live';
+      localStorage.setItem('cpc_prices', JSON.stringify(prices));
+      localStorage.setItem('cpc_prices_ts', Date.now().toString());
+      updateFuelPriceBadge();
+      return;
+    }
+
+    throw new Error('parse failed');
+  } catch(e) {
+    try {
+      const cached = localStorage.getItem('cpc_prices');
+      if (cached) {
+        cpcPrices = JSON.parse(cached);
+        cpcPricesSource = 'cached';
+      } else {
+        cpcPrices = { ...CPC_FALLBACK_PRICES };
+        cpcPricesSource = 'fallback';
+      }
+    } catch(e2) {
+      cpcPrices = { ...CPC_FALLBACK_PRICES };
+      cpcPricesSource = 'fallback';
+    }
+    updateFuelPriceBadge();
+  }
+}
+
+function updateFuelPriceBadgeLoading() {
+  const badge = $('fuel-price-badge');
+  const status = $('fuel-price-status');
+  if (badge) badge.textContent = '取得中…';
+  if (status) { status.textContent = '正在連線中油…'; status.style.color = 'var(--text3)'; }
+}
+
+function updateFuelPriceBadge() {
+  const badge = $('fuel-price-badge');
+  const status = $('fuel-price-status');
+  if (!badge || !cpcPrices) return;
+  const grade = ($('add-fuel-grade') || {}).value || '95';
+  const price = cpcPrices[grade];
+  badge.textContent = price ? `${price.toFixed(1)} 元/L` : '-- 元/L';
+  if (status) {
+    if (cpcPricesSource === 'live') {
+      status.textContent = '✅ 即時油價（中油）';
+      status.style.color = 'var(--green)';
+    } else if (cpcPricesSource === 'cached') {
+      status.textContent = '🕐 快取油價（4小時內）';
+      status.style.color = 'var(--text3)';
+    } else {
+      status.textContent = '⚠️ 參考油價（離線）';
+      status.style.color = 'var(--amber)';
+    }
+  }
+}
 
 // ── State ─────────────────────────────────────────
 let vehicles = [];
@@ -43,6 +164,7 @@ let activeVehicleFilter = 'all';
 let activeTypeFilter = 'all';
 let historySort = 'desc';
 let selectedMaintItems = [];
+let selectedEditMaintItems = [];
 let expandedVehicleId = null;
 let swipeCooldown = false;
 let activeMaintTemplateType = 'car';
@@ -147,10 +269,8 @@ async function checkForUpdate() {
   try {
     const res = await fetch('./version.json?t=' + Date.now(), { cache: 'no-store' });
     const data = await res.json();
-    if (isNewerVersion(data.version, APP_VERSION)) {
-      showUpdateSheet(data.version);
-    }
-  } catch (e) { /* offline */ }
+    if (isNewerVersion(data.version, APP_VERSION)) showUpdateSheet(data.version);
+  } catch(e) {}
 }
 
 function showUpdateSheet(newVer) {
@@ -191,7 +311,7 @@ async function loadData() {
   }
 }
 
-// ── Dashboard (Accordion) ─────────────────────────
+// ── Dashboard ─────────────────────────────────────
 function renderDashboard() {
   const list = $('vehicle-list');
   if (!list) return;
@@ -220,9 +340,7 @@ function renderDashboard() {
     const emoji = v.type === 'motorcycle' ? '🛵' : '🚗';
     const isOpen = expandedVehicleId === v.id;
 
-    // Check maintenance overdue for any template
-    const vType = v.type;
-    const vTemplates = maintenanceTemplates.filter(t => t.vehicleType === vType);
+    const vTemplates = maintenanceTemplates.filter(t => t.vehicleType === v.type);
     let maintOverdue = false;
     if (vTemplates.length > 0 && latestOdometer !== '—') {
       const currentKm = Number(latestOdometer);
@@ -255,7 +373,6 @@ function renderDashboard() {
     const card = el('div', 'card glass vehicle-card');
     card.dataset.vid = v.id;
 
-    // Header (always visible)
     const cardHeader = el('div', 'vc-header');
     cardHeader.innerHTML = `
       <div class="vc-top" style="margin-bottom:0">
@@ -278,10 +395,8 @@ function renderDashboard() {
         <div style="display:flex;gap:12px;flex-wrap:wrap;">${fuelStat}${maintStat}</div>
       </div>`;
 
-    // Expanded body
     const expandedBody = el('div', `vc-expanded-body${isOpen ? ' open' : ''}`);
 
-    // Build inner content
     const recentFuel = fuelRecords.slice(0, 5);
     const recentMaint = maintRecords.slice(0, 3);
 
@@ -329,7 +444,6 @@ function renderDashboard() {
       </div>`;
 
     if (isOpen) {
-      // Set max-height after appending so scroll height is measurable
       requestAnimationFrame(() => {
         expandedBody.style.maxHeight = expandedBody.scrollHeight + 'px';
       });
@@ -339,30 +453,25 @@ function renderDashboard() {
     card.appendChild(expandedBody);
     list.appendChild(card);
 
-    // Toggle expand on header click
     cardHeader.addEventListener('click', (e) => {
       if (e.target.closest('.vc-expand-toggle') || e.target.closest('.btn-vc-action')) return;
       toggleAccordion(v.id, expandedBody, card);
     });
 
-    // Expand toggle button
     const toggleBtn = card.querySelector('.vc-expand-toggle');
-    if (toggleBtn) {
-      toggleBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        toggleAccordion(v.id, expandedBody, card);
-      });
-    }
+    if (toggleBtn) toggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleAccordion(v.id, expandedBody, card);
+    });
 
-    // Action buttons inside expanded
     expandedBody.querySelectorAll('.btn-vc-action').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const action = btn.dataset.action;
         const vid = parseInt(btn.dataset.vid);
-        if (action === 'add-fuel') { openAddModal(vid, 'fuel'); }
-        else if (action === 'add-maint') { openAddModal(vid, 'maintenance'); }
-        else if (action === 'view-all') { openVehicleDetail(vid); }
+        if (action === 'add-fuel') openAddModal(vid, 'fuel');
+        else if (action === 'add-maint') openAddModal(vid, 'maintenance');
+        else if (action === 'view-all') openVehicleDetail(vid);
       });
     });
   });
@@ -370,15 +479,11 @@ function renderDashboard() {
 
 function toggleAccordion(vehicleId, expandedBody, card) {
   const isCurrentlyOpen = expandedVehicleId === vehicleId;
-
-  // Close all first
   document.querySelectorAll('.vc-expanded-body.open').forEach(body => {
     body.style.maxHeight = '0px';
     body.classList.remove('open');
   });
-  document.querySelectorAll('.vc-expand-toggle').forEach(btn => {
-    btn.textContent = '›';
-  });
+  document.querySelectorAll('.vc-expand-toggle').forEach(btn => { btn.textContent = '›'; });
 
   if (!isCurrentlyOpen) {
     expandedVehicleId = vehicleId;
@@ -421,32 +526,14 @@ function renderVehicleDetail() {
 
   $('detail-stats').innerHTML = `
     <div class="stats-row">
-      <div class="stat-box">
-        <div class="stat-val">${avgEff}</div>
-        <div class="stat-label">平均油耗</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-val">${fuelRecords.length}</div>
-        <div class="stat-label">加油次數</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-val">${latestOdometer !== '—' ? Number(latestOdometer).toLocaleString() : '—'}</div>
-        <div class="stat-label">最新里程</div>
-      </div>
+      <div class="stat-box"><div class="stat-val">${avgEff}</div><div class="stat-label">平均油耗</div></div>
+      <div class="stat-box"><div class="stat-val">${fuelRecords.length}</div><div class="stat-label">加油次數</div></div>
+      <div class="stat-box"><div class="stat-val">${latestOdometer !== '—' ? Number(latestOdometer).toLocaleString() : '—'}</div><div class="stat-label">最新里程</div></div>
     </div>
     <div class="stats-row">
-      <div class="stat-box">
-        <div class="stat-val" style="font-size:14px">$${totalFuelCost.toLocaleString()}</div>
-        <div class="stat-label">油費合計</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-val" style="font-size:14px">$${totalMaintCost.toLocaleString()}</div>
-        <div class="stat-label">保養費合計</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-val">${maintRecords.length}</div>
-        <div class="stat-label">保養次數</div>
-      </div>
+      <div class="stat-box"><div class="stat-val" style="font-size:14px">$${totalFuelCost.toLocaleString()}</div><div class="stat-label">油費合計</div></div>
+      <div class="stat-box"><div class="stat-val" style="font-size:14px">$${totalMaintCost.toLocaleString()}</div><div class="stat-label">保養費合計</div></div>
+      <div class="stat-box"><div class="stat-val">${maintRecords.length}</div><div class="stat-label">保養次數</div></div>
     </div>`;
 
   document.querySelectorAll('.detail-tab').forEach(t => {
@@ -462,9 +549,7 @@ function renderVehicleDetail() {
     return;
   }
 
-  displayRecords.forEach(r => {
-    recList.appendChild(buildRecordCard(r, v));
-  });
+  displayRecords.forEach(r => recList.appendChild(buildRecordCard(r, v)));
 }
 
 // ── Vehicles Page ──────────────────────────────────
@@ -503,17 +588,8 @@ function renderVehiclesPage() {
       if (e.target.closest('.vmc-edit-btn') || e.target.closest('.vmc-delete-btn')) return;
       openVehicleDetail(v.id);
     });
-
-    card.querySelector('.vmc-edit-btn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      openEditVehicleModal(v);
-    });
-
-    card.querySelector('.vmc-delete-btn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      confirmDeleteVehicle(v);
-    });
-
+    card.querySelector('.vmc-edit-btn').addEventListener('click', (e) => { e.stopPropagation(); openEditVehicleModal(v); });
+    card.querySelector('.vmc-delete-btn').addEventListener('click', (e) => { e.stopPropagation(); confirmDeleteVehicle(v); });
     list.appendChild(card);
   });
 }
@@ -588,10 +664,14 @@ function openAddModal(vehicleId, type) {
   $('add-maint-cost').value = '';
   $('add-next-reminder').value = '';
   $('add-maint-note').value = '';
+  $('add-fuel-grade').value = '95';
   selectedMaintItems = [];
   renderMaintChips();
   setAddType(addType);
   updateFuelEstimate();
+  // Fetch/show CPC price
+  updateFuelPriceBadge();
+  if (!cpcPrices) fetchCPCPrices();
   openModal('add-modal');
 }
 
@@ -643,7 +723,17 @@ function updateFuelEstimate() {
   const vFuelRecords = records.filter(r => r.vehicleId === vehicleId && r.type === 'fuel')
     .sort((a, b) => b.odometer - a.odometer);
   const prevRecord = vFuelRecords.find(r => r.odometer < odometer);
-  const liters = parseFloat($('add-liters').value);
+
+  // Get liters: from input or calculate from cost+price
+  let liters = parseFloat($('add-liters').value);
+  if ((!liters || isNaN(liters))) {
+    const cost = parseFloat($('add-fuel-cost').value);
+    const grade = $('add-fuel-grade').value;
+    if (cost > 0 && cpcPrices && cpcPrices[grade]) {
+      liters = cost / cpcPrices[grade];
+    }
+  }
+
   if (!prevRecord) {
     est.textContent = '預估油耗：需有前一筆里程記錄';
     return;
@@ -654,7 +744,7 @@ function updateFuelEstimate() {
   }
   const km = odometer - prevRecord.odometer;
   const eff = km / liters;
-  est.textContent = `預估油耗：${eff.toFixed(1)} km/L（${km.toFixed(0)} km / ${liters} L）`;
+  est.textContent = `預估油耗：${eff.toFixed(1)} km/L（${km.toFixed(0)} km / ${liters.toFixed(2)} L）`;
 }
 
 async function submitAddRecord() {
@@ -664,88 +754,80 @@ async function submitAddRecord() {
   if (addType === 'fuel') {
     const date = $('add-date').value;
     const odometer = parseFloat($('add-odometer').value);
-    const liters = parseFloat($('add-liters').value);
     const fuelCost = parseFloat($('add-fuel-cost').value);
+    const fuelGrade = $('add-fuel-grade').value;
     const note = $('add-fuel-note').value.trim();
 
-    if (!date || !odometer || !liters || !fuelCost) { showToast('請填寫必要欄位', 'error'); return; }
+    // Liters: manual input or calculate from cost / price
+    let liters = parseFloat($('add-liters').value);
+    if ((!liters || isNaN(liters)) && fuelCost > 0 && cpcPrices && cpcPrices[fuelGrade]) {
+      liters = parseFloat((fuelCost / cpcPrices[fuelGrade]).toFixed(2));
+    }
+
+    if (!date || !odometer || !fuelCost) { showToast('請填寫日期、里程、加油金額', 'error'); return; }
+    if (!liters || liters <= 0) { showToast('請填寫加油量，或確保已取得油價以自動計算', 'error'); return; }
 
     const vFuelRecords = records.filter(r => r.vehicleId === vehicleId && r.type === 'fuel')
       .sort((a, b) => b.odometer - a.odometer);
     const prevRecord = vFuelRecords.find(r => r.odometer < odometer);
     const fuelEfficiency = prevRecord ? parseFloat(((odometer - prevRecord.odometer) / liters).toFixed(2)) : 0;
 
-    await addRecord({ vehicleId, type: 'fuel', date, odometer, liters, fuelCost, fuelEfficiency, note, createdAt: new Date().toISOString() });
+    await addRecord({ vehicleId, type: 'fuel', date, odometer, liters, fuelCost, fuelEfficiency, fuelGrade, note, createdAt: new Date().toISOString() });
 
-    // Check maintenance templates for overdue items
     records = await getAllRecords();
     const vehicle = vehicles.find(v => v.id === vehicleId);
     if (vehicle) {
-      const vType = vehicle.type;
-      const vTemplates = maintenanceTemplates.filter(t => t.vehicleType === vType);
+      const vTemplates = maintenanceTemplates.filter(t => t.vehicleType === vehicle.type);
       const maintRecords = records.filter(r => r.vehicleId === vehicleId && r.type === 'maintenance');
       const overdueItems = [];
       for (const tmpl of vTemplates) {
-        const lastMaintWithItem = maintRecords
-          .sort((a, b) => b.odometer - a.odometer)
+        const lastMaintWithItem = maintRecords.sort((a, b) => b.odometer - a.odometer)
           .find(r => (r.items || []).includes(tmpl.itemName));
         if (lastMaintWithItem) {
           const nextKm = lastMaintWithItem.odometer + tmpl.intervalKm;
-          if (odometer >= nextKm) {
-            overdueItems.push({ name: tmpl.itemName, nextKm });
-          }
+          if (odometer >= nextKm) overdueItems.push({ name: tmpl.itemName, nextKm });
         }
       }
-      if (overdueItems.length > 0) {
-        overdueItems.forEach(item => {
-          setTimeout(() => showToast(`⚠️ 里程提醒：「${item.name}」應於 ${item.nextKm.toLocaleString()} km 更換，目前 ${odometer.toLocaleString()} km 已超過！`, 'error'), TOAST_STAGGER_DELAY_MS);
-        });
-      }
+      overdueItems.forEach(item => {
+        setTimeout(() => showToast(`⚠️ 里程提醒：「${item.name}」應於 ${item.nextKm.toLocaleString()} km 更換！`, 'error'), TOAST_STAGGER_DELAY_MS);
+      });
     }
   } else {
     const date = $('add-maint-date').value;
     const odometer = parseFloat($('add-maint-odometer').value);
     const maintenanceCost = parseFloat($('add-maint-cost').value);
-    // let: may be overwritten by auto-calculated value from templates below
     let nextOdometerReminder = parseFloat($('add-next-reminder').value) || 0;
     const note = $('add-maint-note').value.trim();
 
     if (!date || !odometer || !maintenanceCost) { showToast('請填寫必要欄位', 'error'); return; }
     if (selectedMaintItems.length === 0) { showToast('請選擇保養項目', 'error'); return; }
 
-    // Auto-calculate next reminder from templates if not manually set
     const vehicle = vehicles.find(v => v.id === vehicleId);
     const autoReminders = [];
     if (vehicle && !nextOdometerReminder) {
-      const vType = vehicle.type;
       for (const itemName of selectedMaintItems) {
-        const tmpl = maintenanceTemplates.find(t => t.vehicleType === vType && t.itemName === itemName);
+        const tmpl = maintenanceTemplates.find(t => t.vehicleType === vehicle.type && t.itemName === itemName);
         if (tmpl) {
           const nextKm = odometer + tmpl.intervalKm;
           autoReminders.push({ name: itemName, nextKm });
-          if (!nextOdometerReminder || nextKm < nextOdometerReminder) {
-            nextOdometerReminder = nextKm;
-          }
+          if (!nextOdometerReminder || nextKm < nextOdometerReminder) nextOdometerReminder = nextKm;
         }
       }
     }
 
     await addRecord({ vehicleId, type: 'maintenance', date, odometer, items: [...selectedMaintItems], maintenanceCost, nextOdometerReminder, note, createdAt: new Date().toISOString() });
-
     records = await getAllRecords();
     showToast('✅ 記錄已儲存', 'success');
-    if (autoReminders.length > 0) {
-      autoReminders.forEach(r => {
-        setTimeout(() => showToast(`🔧 下次「${r.name}」預計於 ${r.nextKm.toLocaleString()} km`, 'info'), TOAST_STAGGER_DELAY_MS);
-      });
-    }
-    closeModal('add-modal', () => { renderDashboard(); });
+    autoReminders.forEach(r => {
+      setTimeout(() => showToast(`🔧 下次「${r.name}」預計於 ${r.nextKm.toLocaleString()} km`, 'info'), TOAST_STAGGER_DELAY_MS);
+    });
+    closeModal('add-modal', () => renderDashboard());
     return;
   }
 
   records = await getAllRecords();
   showToast('✅ 記錄已儲存', 'success');
-  closeModal('add-modal', () => { renderDashboard(); });
+  closeModal('add-modal', () => renderDashboard());
 }
 
 // ── History Page ───────────────────────────────────
@@ -764,10 +846,7 @@ function renderHistoryFilters() {
     vf.appendChild(btn);
   });
   vf.querySelectorAll('.filter-pill').forEach(btn => {
-    btn.addEventListener('click', () => {
-      activeVehicleFilter = btn.dataset.vid;
-      renderHistory();
-    });
+    btn.addEventListener('click', () => { activeVehicleFilter = btn.dataset.vid; renderHistory(); });
   });
 
   const tf = $('history-type-filter');
@@ -779,13 +858,9 @@ function renderHistoryFilters() {
     tf.appendChild(btn);
   });
   tf.querySelectorAll('.filter-pill').forEach(btn => {
-    btn.addEventListener('click', () => {
-      activeTypeFilter = btn.dataset.type;
-      renderHistory();
-    });
+    btn.addEventListener('click', () => { activeTypeFilter = btn.dataset.type; renderHistory(); });
   });
 
-  // Sort buttons
   const sf = $('history-sort-bar');
   sf.innerHTML = '<span style="font-size:11px;color:var(--text3);font-weight:600;align-self:center;margin-right:2px;">排序：</span>';
   [['desc', '↓ 最新'], ['asc', '↑ 最舊']].forEach(([val, label]) => {
@@ -795,10 +870,7 @@ function renderHistoryFilters() {
     sf.appendChild(btn);
   });
   sf.querySelectorAll('.filter-pill').forEach(btn => {
-    btn.addEventListener('click', () => {
-      historySort = btn.dataset.sort;
-      renderHistory();
-    });
+    btn.addEventListener('click', () => { historySort = btn.dataset.sort; renderHistory(); });
   });
 }
 
@@ -834,10 +906,14 @@ function buildRecordCard(r, v) {
 
   const body = el('div', 'record-body');
   const vName = v ? v.name : '未知車輛';
+  const gradeTag = (r.type === 'fuel' && r.fuelGrade)
+    ? `<span class="record-chip" style="background:var(--amber-dim);color:var(--amber)">${escHtml(r.fuelGrade)}汽油</span>` : '';
   body.innerHTML = `
     <div class="record-title">${escHtml(vName)}</div>
     <div class="record-sub">${r.date} · ${Number(r.odometer).toLocaleString()} km</div>
-    ${r.type === 'maintenance' && r.items ? `<div class="record-chips">${r.items.map(i => `<span class="record-chip">${escHtml(i)}</span>`).join('')}</div>` : ''}
+    ${r.type === 'maintenance' && r.items
+      ? `<div class="record-chips">${r.items.map(i => `<span class="record-chip">${escHtml(i)}</span>`).join('')}</div>`
+      : (gradeTag ? `<div class="record-chips">${gradeTag}</div>` : '')}
   `;
 
   const right = el('div', 'record-right');
@@ -847,23 +923,25 @@ function buildRecordCard(r, v) {
       <div class="record-cost">$${Number(r.fuelCost).toLocaleString()}</div>
     `;
   } else {
-    right.innerHTML = `
-      <div class="record-value">$${Number(r.maintenanceCost).toLocaleString()}</div>
-    `;
+    right.innerHTML = `<div class="record-value">$${Number(r.maintenanceCost).toLocaleString()}</div>`;
   }
 
-  wrap.appendChild(iconEl);
-  wrap.appendChild(body);
-  wrap.appendChild(right);
+  // Action buttons row
+  const actions = el('div', 'record-actions');
+  const editBtn = el('button', 'record-action-btn edit', '✏️ 編輯');
+  const delBtn = el('button', 'record-action-btn delete', '🗑️ 刪除');
+  editBtn.addEventListener('click', (e) => { e.stopPropagation(); openEditRecordModal(r); });
+  delBtn.addEventListener('click', (e) => { e.stopPropagation(); confirmDeleteRecord(r.id); });
+  actions.appendChild(editBtn);
+  actions.appendChild(delBtn);
 
-  let pressTimer;
-  const startPress = () => { pressTimer = setTimeout(() => confirmDeleteRecord(r.id), LONG_PRESS_DURATION_MS); };
-  const endPress = () => clearTimeout(pressTimer);
-  wrap.addEventListener('touchstart', startPress, { passive: true });
-  wrap.addEventListener('touchend', endPress);
-  wrap.addEventListener('touchcancel', endPress);
-  wrap.addEventListener('mousedown', startPress);
-  wrap.addEventListener('mouseup', endPress);
+  const top = el('div', 'record-top');
+  top.appendChild(iconEl);
+  top.appendChild(body);
+  top.appendChild(right);
+
+  wrap.appendChild(top);
+  wrap.appendChild(actions);
 
   return wrap;
 }
@@ -880,17 +958,114 @@ function confirmDeleteRecord(id) {
   }
 }
 
+// ── Edit Record Modal ──────────────────────────────
+function openEditRecordModal(r) {
+  $('edit-record-id').value = r.id;
+  $('edit-record-type').value = r.type;
+
+  if (r.type === 'fuel') {
+    $('edit-record-modal-title').textContent = '編輯油耗記錄';
+    $('edit-fuel-form').style.display = 'block';
+    $('edit-maint-form').style.display = 'none';
+    $('edit-date').value = r.date;
+    $('edit-odometer').value = r.odometer;
+    $('edit-fuel-grade').value = r.fuelGrade || '95';
+    $('edit-liters').value = r.liters;
+    $('edit-fuel-cost').value = r.fuelCost;
+    $('edit-fuel-note').value = r.note || '';
+  } else {
+    $('edit-record-modal-title').textContent = '編輯保養記錄';
+    $('edit-fuel-form').style.display = 'none';
+    $('edit-maint-form').style.display = 'block';
+    $('edit-maint-date').value = r.date;
+    $('edit-maint-odometer').value = r.odometer;
+    $('edit-maint-cost').value = r.maintenanceCost;
+    $('edit-next-reminder').value = r.nextOdometerReminder || '';
+    $('edit-maint-note').value = r.note || '';
+    selectedEditMaintItems = [...(r.items || [])];
+    // Render chips: need vehicleId
+    const v = vehicles.find(vv => vv.id === r.vehicleId);
+    renderEditMaintChips(v ? v.type : 'car');
+  }
+
+  openModal('edit-record-modal');
+}
+
+function renderEditMaintChips(vType) {
+  const tmplItems = maintenanceTemplates.filter(t => t.vehicleType === vType).map(t => t.itemName);
+  const staticItems = ['換機油', '換濾芯', '換輪胎', '換煞車皮', '冷卻液', '其他'];
+  const allItems = [...new Set([...tmplItems, ...staticItems, ...selectedEditMaintItems])];
+  $('edit-maint-chips').innerHTML = allItems.map(item =>
+    `<button class="chip${selectedEditMaintItems.includes(item) ? ' selected' : ''}" data-item="${escHtml(item)}">${escHtml(item)}</button>`
+  ).join('');
+  $('edit-maint-chips').querySelectorAll('.chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const item = btn.dataset.item;
+      if (selectedEditMaintItems.includes(item)) {
+        selectedEditMaintItems = selectedEditMaintItems.filter(i => i !== item);
+      } else {
+        selectedEditMaintItems.push(item);
+      }
+      const r = records.find(r => r.id === parseInt($('edit-record-id').value));
+      const v = r ? vehicles.find(vv => vv.id === r.vehicleId) : null;
+      renderEditMaintChips(v ? v.type : 'car');
+    });
+  });
+}
+
+async function saveEditRecord() {
+  const id = parseInt($('edit-record-id').value);
+  const type = $('edit-record-type').value;
+  const existing = records.find(r => r.id === id);
+  if (!existing) { showToast('記錄不存在', 'error'); return; }
+
+  if (type === 'fuel') {
+    const date = $('edit-date').value;
+    const odometer = parseFloat($('edit-odometer').value);
+    const liters = parseFloat($('edit-liters').value);
+    const fuelCost = parseFloat($('edit-fuel-cost').value);
+    const fuelGrade = $('edit-fuel-grade').value;
+    const note = $('edit-fuel-note').value.trim();
+
+    if (!date || !odometer || !liters || !fuelCost) { showToast('請填寫必要欄位', 'error'); return; }
+
+    // Recalculate efficiency
+    const vFuelRecords = records.filter(r => r.vehicleId === existing.vehicleId && r.type === 'fuel' && r.id !== id)
+      .sort((a, b) => b.odometer - a.odometer);
+    const prevRecord = vFuelRecords.find(r => r.odometer < odometer);
+    const fuelEfficiency = prevRecord ? parseFloat(((odometer - prevRecord.odometer) / liters).toFixed(2)) : 0;
+
+    await updateRecord({ ...existing, date, odometer, liters, fuelCost, fuelEfficiency, fuelGrade, note });
+  } else {
+    const date = $('edit-maint-date').value;
+    const odometer = parseFloat($('edit-maint-odometer').value);
+    const maintenanceCost = parseFloat($('edit-maint-cost').value);
+    const nextOdometerReminder = parseFloat($('edit-next-reminder').value) || 0;
+    const note = $('edit-maint-note').value.trim();
+
+    if (!date || !odometer || !maintenanceCost) { showToast('請填寫必要欄位', 'error'); return; }
+    if (selectedEditMaintItems.length === 0) { showToast('請選擇保養項目', 'error'); return; }
+
+    await updateRecord({ ...existing, date, odometer, items: [...selectedEditMaintItems], maintenanceCost, nextOdometerReminder, note });
+  }
+
+  records = await getAllRecords();
+  showToast('✅ 記錄已更新', 'success');
+  closeModal('edit-record-modal', () => {
+    if (currentPage === 'history') renderHistory();
+    if (currentPage === 'dashboard') renderDashboard();
+    if (detailVehicleId) renderVehicleDetail();
+  });
+}
+
 // ── Settings Page ──────────────────────────────────
 function renderSettings() {
   applyTheme();
-  // Restore stored client ID
   const stored = localStorage.getItem('gdrive_client_id');
   if (stored) $('gdrive-client-id-input').value = stored;
-  // Update login button state
   if (driveAccessToken) {
     $('gdrive-login-btn').style.display = 'none';
     $('gdrive-logout-btn').style.display = 'flex';
-    $('gdrive-logout-btn').textContent = '登出';
     $('gdrive-upload-btn').style.display = 'flex';
     $('gdrive-show-backups-btn').style.display = 'flex';
     const userInfo = $('gdrive-user-info');
@@ -923,9 +1098,7 @@ async function exportJSON() {
   showToast('✅ 備份已匯出', 'success');
 }
 
-function importJSON() {
-  $('import-file-input').click();
-}
+function importJSON() { $('import-file-input').click(); }
 
 async function handleImportFile(e) {
   const file = e.target.files[0];
@@ -940,9 +1113,7 @@ async function handleImportFile(e) {
     records = await getAllRecords();
     showToast('✅ 備份已還原', 'success');
     renderDashboard();
-  } catch (err) {
-    showToast('❌ 匯入失敗', 'error');
-  }
+  } catch(err) { showToast('❌ 匯入失敗', 'error'); }
   e.target.value = '';
 }
 
@@ -968,17 +1139,15 @@ function initGIS() {
     callback: async (resp) => {
       if (resp.error) { showToast('❌ 登入失敗', 'error'); return; }
       driveAccessToken = resp.access_token;
-      // Try to get user info
       try {
         const infoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
           headers: { Authorization: `Bearer ${driveAccessToken}` }
         });
         const info = await infoRes.json();
         driveUserName = info.email || info.name || 'Google';
-      } catch (e) { driveUserName = 'Google'; }
+      } catch(e) { driveUserName = 'Google'; }
       $('gdrive-login-btn').style.display = 'none';
       $('gdrive-logout-btn').style.display = 'flex';
-      $('gdrive-logout-btn').textContent = '登出';
       $('gdrive-upload-btn').style.display = 'flex';
       $('gdrive-show-backups-btn').style.display = 'flex';
       const userInfo = $('gdrive-user-info');
@@ -1014,38 +1183,21 @@ async function uploadToDrive() {
   if (!driveAccessToken) { showToast('請先登入 Google', 'error'); return; }
   const now = new Date();
   const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
-  const data = {
-    version: APP_VERSION,
-    exportedAt: now.toISOString(),
-    vehicles: await getAllVehicles(),
-    records: await getAllRecords()
-  };
+  const data = { version: APP_VERSION, exportedAt: now.toISOString(), vehicles: await getAllVehicles(), records: await getAllRecords() };
   const filename = `fuel-record-backup-${dateStr}.json`;
-  const meta = {
-    name: filename,
-    mimeType: 'application/json',
-    parents: [GDRIVE_FOLDER_ID]
-  };
-  const content = JSON.stringify(data, null, 2);
+  const meta = { name: filename, mimeType: 'application/json', parents: [GDRIVE_FOLDER_ID] };
   const form = new FormData();
   form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
-  form.append('file', new Blob([content], { type: 'application/json' }));
+  form.append('file', new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
   try {
     const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
       method: 'POST',
       headers: { Authorization: `Bearer ${driveAccessToken}` },
       body: form
     });
-    if (res.ok) {
-      showToast('✅ 已上傳至 Google Drive', 'success');
-      await pruneOldBackups();
-      listDriveBackups();
-    } else {
-      showToast('❌ 上傳失敗', 'error');
-    }
-  } catch (e) {
-    showToast('❌ 上傳失敗', 'error');
-  }
+    if (res.ok) { showToast('✅ 已上傳至 Google Drive', 'success'); await pruneOldBackups(); listDriveBackups(); }
+    else showToast('❌ 上傳失敗', 'error');
+  } catch(e) { showToast('❌ 上傳失敗', 'error'); }
 }
 
 async function listDriveBackups() {
@@ -1062,22 +1214,20 @@ async function listDriveBackups() {
       listEl.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:8px 0">尚無備份檔案</div>';
       return;
     }
-    const files = data.files.slice(0, GDRIVE_BACKUP_KEEP);
-    files.forEach(f => {
+    data.files.slice(0, GDRIVE_BACKUP_KEEP).forEach(f => {
       const dt = new Date(f.createdTime);
-      const formatted = `${dt.getFullYear()}/${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}:${String(dt.getSeconds()).padStart(2,'0')}`;
+      const formatted = `${dt.getFullYear()}/${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
       const item = el('div', 'backup-file-item');
       item.innerHTML = `
         <div>
           <div class="backup-file-name">☁️ ${escHtml(f.name)}</div>
           <div class="backup-file-date">${formatted}</div>
         </div>
-        <span style="color:var(--blue);font-size:12px;font-weight:600">還原</span>
-      `;
+        <span style="color:var(--blue);font-size:12px;font-weight:600">還原</span>`;
       item.addEventListener('click', () => restoreFromDrive(f.id, f.name));
       listEl.appendChild(item);
     });
-  } catch (e) { /* ignore */ }
+  } catch(e) {}
 }
 
 async function pruneOldBackups() {
@@ -1089,14 +1239,12 @@ async function pruneOldBackups() {
     });
     const data = await res.json();
     if (!data.files || data.files.length <= GDRIVE_BACKUP_KEEP) return;
-    const toDelete = data.files.slice(GDRIVE_BACKUP_KEEP);
-    for (const f of toDelete) {
+    for (const f of data.files.slice(GDRIVE_BACKUP_KEEP)) {
       await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${driveAccessToken}` }
+        method: 'DELETE', headers: { Authorization: `Bearer ${driveAccessToken}` }
       });
     }
-  } catch (e) { /* ignore */ }
+  } catch(e) {}
 }
 
 async function restoreFromDrive(fileId, fileName) {
@@ -1112,9 +1260,7 @@ async function restoreFromDrive(fileId, fileName) {
     records = await getAllRecords();
     showToast('✅ 已從 Drive 還原', 'success');
     renderDashboard();
-  } catch (e) {
-    showToast('❌ 還原失敗', 'error');
-  }
+  } catch(e) { showToast('❌ 還原失敗', 'error'); }
 }
 
 // ── Maintenance Templates UI ───────────────────────
@@ -1197,21 +1343,17 @@ async function confirmDeleteMaintTemplate(tmpl) {
   renderMaintTemplatesList();
 }
 
-// ── Swipe-to-Close for Modal Panels ───────────────
+// ── Swipe-to-Close ─────────────────────────────────
 function attachSwipeClose(modalId) {
   const modal = $(modalId);
   if (!modal) return;
-
-  let startX = 0, startY = 0, startTime = 0;
-  let tracking = false;
+  let startX = 0, startY = 0, tracking = false;
 
   modal.addEventListener('touchstart', (e) => {
     if (swipeCooldown) return;
     const touch = e.touches[0];
-    if (touch.clientX > SWIPE_EDGE_THRESHOLD) return; // Only start from left edge
-    startX = touch.clientX;
-    startY = touch.clientY;
-    startTime = Date.now();
+    if (touch.clientX > SWIPE_EDGE_THRESHOLD) return;
+    startX = touch.clientX; startY = touch.clientY;
     tracking = true;
     modal.style.transition = 'none';
   }, { passive: true });
@@ -1235,7 +1377,6 @@ function attachSwipeClose(modalId) {
     const dx = touch.clientX - startX;
     const dy = touch.clientY - startY;
     if (dx > SWIPE_CLOSE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * SWIPE_HORIZONTAL_RATIO) {
-      // Trigger close
       swipeCooldown = true;
       modal.style.transform = 'translateX(105%)';
       setTimeout(() => {
@@ -1244,7 +1385,6 @@ function attachSwipeClose(modalId) {
         setTimeout(() => { swipeCooldown = false; }, SWIPE_COOLDOWN_MS);
       }, 280);
     } else {
-      // Snap back
       modal.style.transform = 'translateX(0)';
     }
   }, { passive: true });
@@ -1265,16 +1405,11 @@ function registerSW() {
     reg.addEventListener('updatefound', () => {
       const newWorker = reg.installing;
       newWorker.addEventListener('statechange', () => {
-        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-          checkForUpdate();
-        }
+        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) checkForUpdate();
       });
     });
   });
-
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    location.reload();
-  });
+  navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
 }
 
 // ── Utilities ─────────────────────────────────────
@@ -1291,39 +1426,41 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadData();
   navigate('dashboard');
 
-  // Bottom nav events
+  // Fetch CPC prices in background
+  fetchCPCPrices();
+
+  // Bottom nav
   ['dashboard', 'history', 'vehicles', 'settings'].forEach(page => {
     const btn = $(`nav-${page}`);
     if (btn) btn.addEventListener('click', () => navigate(page));
   });
-  const navAdd = $('nav-add');
-  if (navAdd) navAdd.addEventListener('click', () => openAddModal(null, 'fuel'));
+  $('nav-add').addEventListener('click', () => openAddModal(null, 'fuel'));
 
-  // Theme toggles
-  const themeToggle = $('theme-toggle-btn');
-  if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
-  const settingsThemeBtn = $('settings-theme-btn');
-  if (settingsThemeBtn) settingsThemeBtn.addEventListener('click', toggleTheme);
-  const settingsThemeToggle = $('settings-theme-toggle');
-  if (settingsThemeToggle) settingsThemeToggle.addEventListener('click', toggleTheme);
+  // Theme
+  $('theme-toggle-btn').addEventListener('click', toggleTheme);
+  $('settings-theme-btn').addEventListener('click', toggleTheme);
+  $('settings-theme-toggle').addEventListener('click', toggleTheme);
 
-  // Add modal events
+  // Add modal
   document.querySelectorAll('.type-tab').forEach(btn => {
     btn.addEventListener('click', () => setAddType(btn.dataset.type));
   });
   $('add-vehicle-select').addEventListener('change', () => { updateFuelEstimate(); renderMaintChips(); });
   $('add-odometer').addEventListener('input', updateFuelEstimate);
   $('add-liters').addEventListener('input', updateFuelEstimate);
+  $('add-fuel-cost').addEventListener('input', updateFuelEstimate);
+  $('add-fuel-grade').addEventListener('change', () => { updateFuelPriceBadge(); updateFuelEstimate(); });
   $('add-submit-btn').addEventListener('click', submitAddRecord);
   $('add-modal-back').addEventListener('click', () => closeModal('add-modal'));
+
+  // Edit record modal
+  $('edit-record-modal-back').addEventListener('click', () => closeModal('edit-record-modal'));
+  $('save-edit-record-btn').addEventListener('click', saveEditRecord);
 
   // Vehicle detail modal
   $('detail-modal-back').addEventListener('click', () => closeModal('vehicle-detail-modal'));
   document.querySelectorAll('.detail-tab').forEach(btn => {
-    btn.addEventListener('click', () => {
-      detailTab = btn.dataset.tab;
-      renderVehicleDetail();
-    });
+    btn.addEventListener('click', () => { detailTab = btn.dataset.tab; renderVehicleDetail(); });
   });
 
   // Vehicles page
@@ -1333,17 +1470,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('edit-vehicle-modal-back').addEventListener('click', () => closeModal('edit-vehicle-modal'));
   $('save-edit-vehicle-btn').addEventListener('click', saveEditVehicle);
 
-  // Settings page
+  // Settings
   $('export-btn').addEventListener('click', exportJSON);
   $('import-btn').addEventListener('click', importJSON);
   $('import-file-input').addEventListener('change', handleImportFile);
   $('gdrive-login-btn').addEventListener('click', googleLogin);
   $('gdrive-logout-btn').addEventListener('click', googleLogout);
   $('gdrive-upload-btn').addEventListener('click', uploadToDrive);
-  $('gdrive-show-backups-btn').addEventListener('click', () => {
-    listDriveBackups();
-    openModal('backup-list-modal');
-  });
+  $('gdrive-show-backups-btn').addEventListener('click', () => { listDriveBackups(); openModal('backup-list-modal'); });
   $('backup-list-modal-back').addEventListener('click', () => closeModal('backup-list-modal'));
   $('clear-data-btn').addEventListener('click', handleClearAllData);
   $('open-maint-templates-btn').addEventListener('click', openMaintTemplatesModal);
@@ -1378,19 +1512,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   $('update-overlay').addEventListener('click', () => closeSheet('update-overlay', 'update-sheet'));
 
-  // Attach swipe-to-close for all modal panels
-  ['add-modal', 'vehicle-detail-modal', 'add-vehicle-modal', 'edit-vehicle-modal', 'backup-list-modal', 'maint-templates-modal', 'add-maint-template-modal'].forEach(id => {
-    attachSwipeClose(id);
-  });
+  // Swipe-to-close for all modals
+  ['add-modal', 'edit-record-modal', 'vehicle-detail-modal', 'add-vehicle-modal', 'edit-vehicle-modal',
+   'backup-list-modal', 'maint-templates-modal', 'add-maint-template-modal'].forEach(id => attachSwipeClose(id));
 
-  // Register SW and check for updates
   registerSW();
   setTimeout(checkForUpdate, 3000);
 
-  // Init GIS if stored
-  if (window.google && localStorage.getItem('gdrive_client_id')) {
-    initGIS();
-  }
+  if (window.google && localStorage.getItem('gdrive_client_id')) initGIS();
   window.addEventListener('load', () => {
     if (window.google && localStorage.getItem('gdrive_client_id')) initGIS();
   });

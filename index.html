@@ -12,7 +12,6 @@
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon.svg">
   <link rel="stylesheet" href="style.css">
-  <!-- Prevent flash of wrong theme -->
   <script>
     if (localStorage.getItem('theme') !== 'dark') {
       document.documentElement.classList.add('light-pending');
@@ -28,7 +27,7 @@
       <span class="header-title">我的車輛</span>
       <div class="header-actions">
         <button id="theme-toggle-btn" aria-label="切換主題">🌙</button>
-        <span id="version-label">v1.2.0</span>
+        <span id="version-label">v1.3.0</span>
       </div>
     </div>
     <div id="main-content" class="page-content">
@@ -62,18 +61,16 @@
     </div>
   </div>
 
-  <!-- ── Settings Page (was Backup) ── -->
+  <!-- ── Settings Page ── -->
   <div id="page-settings" class="page">
     <div style="height:44px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:var(--bg);border-bottom:1px solid var(--border);z-index:5;">
       <span style="font-size:16px;font-weight:700">⚙️ 設定</span>
       <div style="display:flex;align-items:center;gap:8px;">
-        <span style="font-size:10px;color:var(--text3);font-weight:600">v1.2.0</span>
+        <span style="font-size:10px;color:var(--text3);font-weight:600">v1.3.0</span>
         <button id="settings-theme-btn" style="background:none;border:none;cursor:pointer;font-size:18px;padding:4px;min-width:32px;min-height:32px;display:flex;align-items:center;justify-content:center;">🌙</button>
       </div>
     </div>
     <div class="page-content">
-
-      <!-- Appearance section -->
       <div class="settings-section-title">外觀</div>
       <div class="card" style="margin-bottom:14px">
         <div style="display:flex;align-items:center;justify-content:space-between;">
@@ -87,27 +84,19 @@
           <button id="settings-theme-toggle" class="toggle-btn"></button>
         </div>
       </div>
-
       <div class="divider"></div>
-
-      <!-- Local backup section -->
       <div class="settings-section-title">📱 本機備份</div>
       <div class="backup-btn-row" style="margin-bottom:14px">
         <button id="export-btn" class="btn-secondary">⬇️ 匯出 JSON 備份</button>
         <button id="import-btn" class="btn-secondary">⬆️ 匯入 JSON 還原</button>
         <input type="file" id="import-file-input" accept=".json" style="display:none">
       </div>
-
       <div class="divider"></div>
-
-      <!-- Google Drive section -->
       <div class="settings-section-title">☁️ Google Drive 備份</div>
-
       <div class="form-group">
         <label class="form-label">Google Client ID</label>
         <input type="text" id="gdrive-client-id-input" class="form-input" placeholder="貼上您的 Google OAuth Client ID" value="">
       </div>
-
       <div class="backup-btn-row" style="margin-bottom:14px">
         <button id="gdrive-login-btn" class="btn-secondary">🔑 登入 Google 帳號</button>
         <button id="gdrive-logout-btn" class="btn-secondary" style="display:none">登出</button>
@@ -115,10 +104,7 @@
         <button id="gdrive-upload-btn" class="btn-secondary" style="display:none">☁️ 立即備份至 Google Drive</button>
         <button id="gdrive-show-backups-btn" class="btn-secondary" style="display:none">📋 查看近期備份</button>
       </div>
-
       <div class="divider"></div>
-
-      <!-- API Setup Guide (collapsible) -->
       <div>
         <div id="gdrive-api-toggle" class="collapsible-header">
           <span class="ch-title">ℹ️ Google API 設定說明</span>
@@ -134,46 +120,24 @@
           <p><strong>7.</strong> 在 OAuth 同意頁面加入測試使用者（您自己的 Gmail）</p>
         </div>
       </div>
-
       <div class="divider"></div>
-
-      <!-- Maintenance Settings section -->
       <div class="settings-section-title">🔧 保養設定</div>
       <button id="open-maint-templates-btn" class="btn-secondary" style="width:100%;margin-bottom:14px">🔧 保養項目設定</button>
-
       <div class="divider"></div>
-
-      <!-- Danger Zone -->
       <div class="settings-section-title" style="color:var(--red)">⚠️ 危險區域</div>
       <p style="font-size:12px;color:var(--text2);margin-bottom:10px">清除後車輛與記錄將永久刪除，設定與保養項目模板不受影響。</p>
       <button id="clear-data-btn" class="btn-danger">🗑️ 清除所有資料</button>
       <div style="height:20px"></div>
-
     </div>
   </div>
 
-  <!-- ── Bottom Navigation (5 items) ── -->
+  <!-- ── Bottom Navigation ── -->
   <nav id="bottom-nav">
-    <button class="nav-btn active" id="nav-dashboard">
-      <span class="nav-icon">🏠</span>
-      儀表板
-    </button>
-    <button class="nav-btn" id="nav-add">
-      <span class="nav-icon">➕</span>
-      新增
-    </button>
-    <button class="nav-btn" id="nav-history">
-      <span class="nav-icon">📋</span>
-      歷史
-    </button>
-    <button class="nav-btn" id="nav-vehicles">
-      <span class="nav-icon">🚗</span>
-      車輛
-    </button>
-    <button class="nav-btn" id="nav-settings">
-      <span class="nav-icon">⚙️</span>
-      設定
-    </button>
+    <button class="nav-btn active" id="nav-dashboard"><span class="nav-icon">🏠</span>儀表板</button>
+    <button class="nav-btn" id="nav-add"><span class="nav-icon">➕</span>新增</button>
+    <button class="nav-btn" id="nav-history"><span class="nav-icon">📋</span>歷史</button>
+    <button class="nav-btn" id="nav-vehicles"><span class="nav-icon">🚗</span>車輛</button>
+    <button class="nav-btn" id="nav-settings"><span class="nav-icon">⚙️</span>設定</button>
   </nav>
 
 </div><!-- /#app -->
@@ -185,12 +149,10 @@
     <span class="modal-title">新增紀錄</span>
   </div>
   <div class="modal-content">
-
     <div class="form-group">
       <label class="form-label">選擇車輛</label>
       <select id="add-vehicle-select" class="form-input"></select>
     </div>
-
     <div class="type-tabs">
       <button class="type-tab active" data-type="fuel">⛽ 油耗</button>
       <button class="type-tab" data-type="maintenance">🔧 保養</button>
@@ -206,9 +168,22 @@
         <label class="form-label">當下里程 km *</label>
         <input type="number" id="add-odometer" class="form-input" placeholder="例：45230" inputmode="numeric">
       </div>
+      <!-- Fuel Grade + Live Price -->
       <div class="form-group">
-        <label class="form-label">加油量 L *</label>
-        <input type="number" id="add-liters" class="form-input" placeholder="例：40.5" step="0.01" inputmode="decimal">
+        <label class="form-label">油品 / 即時油價</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="add-fuel-grade" class="form-input" style="flex:1">
+            <option value="92">92 無鉛汽油</option>
+            <option value="95" selected>95 無鉛汽油</option>
+            <option value="98">98 無鉛汽油</option>
+          </select>
+          <div id="fuel-price-badge" class="fuel-price-badge">-- 元/L</div>
+        </div>
+        <div id="fuel-price-status" class="fuel-price-status">取得油價中…</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">加油量 L（選填，可由費用自動計算）</label>
+        <input type="number" id="add-liters" class="form-input" placeholder="例：40.5 （不填則由費用÷油價計算）" step="0.01" inputmode="decimal">
       </div>
       <div id="fuel-estimate" class="estimate-bar">預估油耗：需填入當下里程</div>
       <div class="form-group">
@@ -251,7 +226,79 @@
 
     <button id="add-submit-btn" class="btn-primary" style="margin-top:8px">✅ 儲存記錄</button>
     <div style="height:20px"></div>
+  </div>
+</div>
 
+<!-- ── Edit Record Modal ── -->
+<div id="edit-record-modal" class="modal-panel">
+  <div class="modal-header">
+    <button id="edit-record-modal-back" class="modal-back-btn" aria-label="返回">←</button>
+    <span id="edit-record-modal-title" class="modal-title">編輯記錄</span>
+  </div>
+  <div class="modal-content">
+    <input type="hidden" id="edit-record-id">
+    <input type="hidden" id="edit-record-type">
+    <!-- Fuel Edit Form -->
+    <div id="edit-fuel-form">
+      <div class="form-group">
+        <label class="form-label">日期</label>
+        <input type="date" id="edit-date" class="form-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label">當下里程 km *</label>
+        <input type="number" id="edit-odometer" class="form-input" inputmode="numeric">
+      </div>
+      <div class="form-group">
+        <label class="form-label">油品</label>
+        <select id="edit-fuel-grade" class="form-input">
+          <option value="92">92 無鉛汽油</option>
+          <option value="95" selected>95 無鉛汽油</option>
+          <option value="98">98 無鉛汽油</option>
+          <option value="">未記錄</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">加油量 L *</label>
+        <input type="number" id="edit-liters" class="form-input" step="0.01" inputmode="decimal">
+      </div>
+      <div class="form-group">
+        <label class="form-label">加油金額 元 *</label>
+        <input type="number" id="edit-fuel-cost" class="form-input" inputmode="numeric">
+      </div>
+      <div class="form-group">
+        <label class="form-label">備註</label>
+        <textarea id="edit-fuel-note" class="form-input"></textarea>
+      </div>
+    </div>
+    <!-- Maintenance Edit Form -->
+    <div id="edit-maint-form" style="display:none">
+      <div class="form-group">
+        <label class="form-label">日期</label>
+        <input type="date" id="edit-maint-date" class="form-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label">當下里程 km *</label>
+        <input type="number" id="edit-maint-odometer" class="form-input" inputmode="numeric">
+      </div>
+      <div class="form-group">
+        <label class="form-label">保養項目 *</label>
+        <div id="edit-maint-chips" class="chips-container"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">花費金額 元 *</label>
+        <input type="number" id="edit-maint-cost" class="form-input" inputmode="numeric">
+      </div>
+      <div class="form-group">
+        <label class="form-label">下次保養提醒里程</label>
+        <input type="number" id="edit-next-reminder" class="form-input" inputmode="numeric">
+      </div>
+      <div class="form-group">
+        <label class="form-label">備註</label>
+        <textarea id="edit-maint-note" class="form-input"></textarea>
+      </div>
+    </div>
+    <button id="save-edit-record-btn" class="btn-primary" style="margin-top:8px">✅ 儲存修改</button>
+    <div style="height:20px"></div>
   </div>
 </div>
 
@@ -402,9 +449,7 @@
 <!-- ── Toast ── -->
 <div id="toast"></div>
 
-<!-- Google Identity Services SDK -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-
 <script src="db.js"></script>
 <script src="app.js"></script>
 </body>
